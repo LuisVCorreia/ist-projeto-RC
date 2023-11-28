@@ -1,5 +1,6 @@
 #include "clientUDP.hpp"
 
+// Fix for server
 
 int main(int argc, char *argv[]) {
     bool verbose = false;

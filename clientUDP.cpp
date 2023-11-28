@@ -1,15 +1,15 @@
 #include "clientUDP.hpp"
 
-ClientUDP::ClientUDP(const std::string& port, bool verbose) {
+ClientUDP::ClientUDP(const char* port, const char* asip) {
     struct addrinfo hints;
     int errcode;
-    this->verbose = verbose; //TODO check this
+    this->asip = asip; 
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
 
-    errcode = getaddrinfo(HOST, port.c_str(), &hints, &res);
+    errcode = getaddrinfo(asip, port, &hints, &res);
     if (errcode != 0) exit(1);
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -46,11 +46,12 @@ void ClientUDP::readCommand() {
         handleLogin(additionalInfo);
     else if (command == "logout")
         handleLogout(additionalInfo);
+    else if (command == "unregister")
+        handleUnregister(additionalInfo);
     else if (command == "exit") 
         handleExit();
     else 
         std::cout << "command not found\n";
-
 }
 
 
@@ -69,6 +70,8 @@ void ClientUDP::handleLogin(const std::string& additionalInfo) {
         receiveLoginResponse();
     } else {
         std::cout << "invalid login format\n";
+        uid = "";
+        password = "";
     }
 }
 
@@ -84,6 +87,21 @@ void ClientUDP::handleLogout(const std::string& additionalInfo) {
     }
     sendLogoutMessage();
     receiveLogoutResponse();
+}
+
+
+void ClientUDP::handleUnregister(const std::string& additionalInfo) {
+    if (!additionalInfo.empty()) {  //check valid format
+        std::cout << "invalid unregister format\n";
+        return;
+    }
+    if (uid.empty()) {  //check if user is logged in
+        std::cout << "user not logged in\n";
+        return;
+    }
+    sendUnregisterMessage();
+    receiveUnregisterResponse();
+
 }
 
 
@@ -128,6 +146,10 @@ void ClientUDP::sendLoginMessage() {
 
 void ClientUDP::sendLogoutMessage() {
     sendAuthMessage("LOU");
+}
+
+void ClientUDP::sendUnregisterMessage() {
+    sendAuthMessage("UNR");
 }
 
 
@@ -196,6 +218,41 @@ void ClientUDP::receiveLogoutResponse(){
         std::cout << "incorrect logout attempt: user is not logged in\n";
     else if (status == "UNR\n")
         std::cout << "incorrect logout attempt: user is not registered\n";
+    else 
+        //TODO: Basta mensagem de erro?
+        std::cout << "WARNING: unexpected protocol message\n";
+    }
+
+void ClientUDP::receiveUnregisterResponse(){
+    char buffer[128];
+    struct sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
+
+    ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
+    if (n == -1) exit(1);
+
+    buffer[n] = '\0';
+
+    std::string response = std::string(buffer).substr(0, 3);
+    std::string status = std::string(buffer).substr(4);
+
+
+    if (response != "RUR"){
+        //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
+        // mensagens deste protocolo, então devem ser rejeitadas. Basta mensagem de erro?
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
+
+    if (status == "OK\n") {
+        std::cout << "successful unregister\n";
+        uid = "";
+        password = "";
+    }
+    else if (status == "NOK\n")
+        std::cout << "incorrect unregister attempt: user is not logged in\n";
+    else if (status == "UNR\n")
+        std::cout << "incorrect unregister attempt: user is not registered\n";
     else 
         //TODO: Basta mensagem de erro?
         std::cout << "WARNING: unexpected protocol message\n";
