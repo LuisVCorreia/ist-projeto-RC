@@ -34,6 +34,8 @@ class ClientUDP {
         void handleLogin(const std::string& additionalInfo);
         void handleLogout(const std::string& additionalInfo);
         void handleUnregister(const std::string& additionalInfo);
+        void handleMyAuctions(const std::string&additionalInfo);
+        void handleMyBids(const std::string&additionalInfo);
         void handleExit();
         int loginValid();
         void sendAuthMessage(std::string messageType);  
@@ -43,6 +45,11 @@ class ClientUDP {
         void receiveLogoutResponse();
         void sendUnregisterMessage();
         void receiveUnregisterResponse();
+        void sendMyAuctionsMessage();
+        void sendUIDMessage(std::string messageType);
+        void receiveMyAuctionsResponse();
+        void sendMyBidsMessage();
+        void receiveMyBidsResponse();
 };
 
 #endif
