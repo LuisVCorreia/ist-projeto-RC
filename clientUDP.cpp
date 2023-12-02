@@ -52,6 +52,8 @@ void ClientUDP::readCommand() {
         handleMyAuctions(additionalInfo);
     else if (command == "mybids" || command == "mb")
         handleMyBids(additionalInfo);
+    else if (command == "list" || command == "l")
+        handleAllAuctions(additionalInfo);
     else if (command == "exit") 
         handleExit();
     else 
@@ -70,7 +72,7 @@ void ClientUDP::handleLogin(const std::string& additionalInfo) {
     password = additionalInfo.substr(splitIndex + 1);
 
     if (loginValid()) {  //check if credentials are valid
-        sendLoginMessage();
+        sendLoginRequest();
         receiveLoginResponse();
     } else {
         std::cout << "invalid login format\n";
@@ -89,7 +91,7 @@ void ClientUDP::handleLogout(const std::string& additionalInfo) {
         std::cout << "user not logged in\n";
         return;
     }
-    sendLogoutMessage();
+    sendLogoutRequest();
     receiveLogoutResponse();
 }
 
@@ -103,9 +105,8 @@ void ClientUDP::handleUnregister(const std::string& additionalInfo) {
         std::cout << "user not logged in\n";
         return;
     }
-    sendUnregisterMessage();
+    sendUnregisterRequest();
     receiveUnregisterResponse();
-
 }
 
 
@@ -120,9 +121,8 @@ void ClientUDP::handleMyAuctions(const std::string&additionalInfo) {
         return;
     }
 
-    sendMyAuctionsMessage();
+    sendMyAuctionsRequest();
     receiveMyAuctionsResponse();
-    
 }
 
 
@@ -135,9 +135,17 @@ void ClientUDP::handleMyBids(const std::string& additionalInfo) {
         std::cout << "user not logged in\n";
         return;
     }
-    sendMyBidsMessage();
+    sendMyBidsRequest();
     receiveMyBidsResponse();
+}
 
+void ClientUDP::handleAllAuctions(const std::string& additionalInfo) {
+    if (!additionalInfo.empty()) {  //check valid format
+        std::cout << "invalid unregister format\n";
+        return;
+    }
+    sendAllAuctionsRequest();
+    receiveAllAuctionsResponse();
 }
 
 
@@ -159,13 +167,13 @@ int ClientUDP::loginValid() {
 }
 
 
-void ClientUDP::sendAuthMessage(std::string messageType) {
-    // send login or logout message to server FIXME also for unregister
+void ClientUDP::sendAuthRequest(std::string requestType) {
+    // send login or logout message to server
     ssize_t n;
     char message[21];
     std::ostringstream msgStream;
 
-    msgStream << messageType << " " << uid << " " << password << "\n";
+    msgStream << requestType << " " << uid << " " << password << "\n";
     std::string temp = msgStream.str();
 
     strncpy(message, temp.c_str(), sizeof(message) - 1);
@@ -176,50 +184,54 @@ void ClientUDP::sendAuthMessage(std::string messageType) {
 }
 
 
-void ClientUDP::sendUIDMessage(std::string messageType) {
-    // send login or logout message to server FIXME also for unregister
+void ClientUDP::sendLoginRequest() {
+    sendAuthRequest("LIN");
+}
+
+void ClientUDP::sendLogoutRequest() {
+    sendAuthRequest("LOU");
+}
+
+void ClientUDP::sendUnregisterRequest() {
+    sendAuthRequest("UNR");
+}
+
+
+void ClientUDP::sendUIDRequest(std::string requestType) {
+    // send list request to server
     ssize_t n;
     char message[12];
     std::ostringstream msgStream;
 
-    msgStream << messageType << " " << uid << "\n";
+    msgStream << requestType << " " << uid << "\n";
     std::string temp = msgStream.str();
 
     strncpy(message, temp.c_str(), sizeof(message) - 1);
     message[11] = '\0';
 
-    std::cout << message << std::endl;
     n = sendto(fd, message, 11, 0, res->ai_addr, res->ai_addrlen);
     if (n == -1) exit(1);
 }
 
 
-void ClientUDP::sendLoginMessage() {
-    sendAuthMessage("LIN");
+void ClientUDP::sendMyAuctionsRequest() {
+    sendUIDRequest("LMA");
 }
 
-void ClientUDP::sendLogoutMessage() {
-    sendAuthMessage("LOU");
+void ClientUDP::sendMyBidsRequest() {
+    sendUIDRequest("LMB");
 }
 
-void ClientUDP::sendUnregisterMessage() {
-    sendAuthMessage("UNR");
-}
-
-void ClientUDP::sendMyAuctionsMessage() {
-    sendUIDMessage("LMA");
-}
-
-void ClientUDP::sendMyBidsMessage() {
-    sendUIDMessage("LMB");
+void ClientUDP::sendAllAuctionsRequest() {
+    if (sendto(fd, "LST\n", 4, 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 
-void ClientUDP::receiveLoginResponse(){
+void ClientUDP::receiveAuthResponse(std::string responseType){
     char buffer[128];
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
-    
+
     ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
     if (n == -1) exit(1);
 
@@ -228,9 +240,35 @@ void ClientUDP::receiveLoginResponse(){
     std::string response = std::string(buffer).substr(0, 3);
     std::string status = std::string(buffer).substr(4);
 
+    if (responseType == "RLI"){
+        validateLoginResponse(response, status);
+    }
+    else if (responseType == "RLO"){
+        validateLogoutResponse(response, status);
+    }
+    else if (responseType == "RUR"){
+        validateUnregisterResponse(response, status);
+    }
+
+}
+
+void ClientUDP::receiveLoginResponse(){
+    receiveAuthResponse("RLI");
+}
+
+void ClientUDP::receiveLogoutResponse(){
+    receiveAuthResponse("RLO");
+}
+
+void ClientUDP::receiveUnregisterResponse(){
+    receiveAuthResponse("RUR");
+}
+
+
+void ClientUDP::validateLoginResponse(std::string response, std::string status){
     if (response != "RLI"){
         //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas. Basta mensagem de erro?
+        // mensagens deste protocolo, então devem ser rejeitadas. error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
@@ -245,28 +283,16 @@ void ClientUDP::receiveLoginResponse(){
         password = "";
     }
     else 
-        //TODO: Basta mensagem de erro?
+        //TODO: error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
 }
 
 
-void ClientUDP::receiveLogoutResponse(){
-    char buffer[128];
-    struct sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
 
-    ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1);
-
-    buffer[n] = '\0';
-
-    std::string response = std::string(buffer).substr(0, 3);
-    std::string status = std::string(buffer).substr(4);
-
-
+void ClientUDP::validateLogoutResponse(std::string response, std::string status){
     if (response != "RLO"){
         //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas. Basta mensagem de erro?
+        // mensagens deste protocolo, então devem ser rejeitadas. error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
@@ -281,28 +307,16 @@ void ClientUDP::receiveLogoutResponse(){
     else if (status == "UNR\n")
         std::cout << "incorrect logout attempt: user is not registered\n";
     else 
-        //TODO: Basta mensagem de erro?
+        //TODO: error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
 }
 
 
-void ClientUDP::receiveUnregisterResponse(){
-    char buffer[128];
-    struct sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
 
-    ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1);
-
-    buffer[n] = '\0';
-
-    std::string response = std::string(buffer).substr(0, 3);
-    std::string status = std::string(buffer).substr(4);
-
-
+void ClientUDP::validateUnregisterResponse(std::string response, std::string status){
     if (response != "RUR"){
         //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas. Basta mensagem de erro?
+        // mensagens deste protocolo, então devem ser rejeitadas.error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
@@ -317,93 +331,131 @@ void ClientUDP::receiveUnregisterResponse(){
     else if (status == "UNR\n")
         std::cout << "incorrect unregister attempt: user is not registered\n";
     else 
-        //TODO: Basta mensagem de erro?
+        //TODO: error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
 }
+
 
 
 void ClientUDP::receiveMyAuctionsResponse(){
-   /* char buffer[128];
-    struct sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
+    receiveListResponse("RMA");
+}
 
-    ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1);
+void ClientUDP::receiveMyBidsResponse(){
+    receiveListResponse("RMB");
+}
 
-    buffer[n] = '\0';
-
-    //buffer = "RMB OK 123 1 435 0 654 1"
-
-    std::string response = std::string(buffer).substr(0, 3);
-    std::string status = std::string(buffer).substr(4);
-
-
-    if (response != "RMA"){
-        //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas. Basta mensagem de erro?
-        std::cout << "WARNING: unexpected protocol message\n";
-        return;
-    }
-
-    if (status == "OK\n") {
-        std::cout << status << "\n";
-    }
-    else if (status == "NOK\n")
-        std::cout << "user has no ongoing bids\n";
-    else if (status == "NLG\n")
-        std::cout << "user is not logged in\n";
-    else 
-        //TODO: Basta mensagem de erro?
-        std::cout << "WARNING: unexpected protocol message\n";*/
+void ClientUDP::receiveAllAuctionsResponse(){
+    receiveListResponse("RLS");
 }
 
 
 
-void ClientUDP::receiveMyBidsResponse(){
-    char buffer[128];
+void ClientUDP::receiveListResponse(std::string responseType){
+    // max size of message is 7 + 6 * 999 + 1 =  6002
+    char buffer[6002];
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
 
-    ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1);
+    ssize_t n = recvfrom(fd, buffer, 6002, 0, (struct sockaddr*)&addr, &addrlen);
+    if (n == -1) exit(1);   // TODO remove all exits and handle errors
 
     buffer[n] = '\0';
 
     std::string response_code = std::string(buffer).substr(0, 3);
     std::string response_info = std::string(buffer).substr(4);
 
+    if (responseType != response_code ){
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
 
     ssize_t splitIndex = response_info.find(' ');
 
     if (splitIndex != std::string::npos) {
+        // no auctions received in the response or error
         std::string status = response_info.substr(0, splitIndex);
-        
+        if (status != "OK") {
+            std::cout << "WARNING: unexpected protocol message\n";
+            return;
+        }
 
-    } else {
-        std::string status = response_info;
+        std::string info = response_info.substr(splitIndex + 1);
+        parseAuctionInfo(info);
+    } 
+    else {
+        if (responseType == "RMA")
+            validateMyAuctionsResponse(response_info);
+        else if (responseType == "RMB")
+            validateMyBidsResponse(response_info);
+        else if (responseType == "RLS")
+            validateAllAuctionsResponse(response_info);
+        else
+            std::cout << "WARNING: unexpected protocol message\n";
     }
+}
 
-    
-    
 
-    std::cout << response << std::endl;
-    if (response != "RMB"){
-        //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas. Basta mensagem de erro?
-        std::cout << "WARNING!!!: unexpected protocol message\n";
-        return;
-    }
+void ClientUDP::parseAuctionInfo(std::string info){
+    // info in the form: [ AID state ]*
+    if (info.empty() || info.back() != '\n') {
+            std::cout << "WARNING: unexpected protocol message\n";
+            return;
+        }
 
-    if (status == "OK\n") {
-        std::cout << "successful unregister\n";
-        uid = "";
-        password = "";
-    }
-    else if (status == "NOK\n")
-        std::cout << "user has no ongoing bids\n";
-    else if (status == "UNR\n")
+        info.pop_back();    // remove newline at the end of the string
+
+        size_t start = 0;
+        size_t end = info.find(' ', start + 4);
+
+        while (start != info.length()) {
+            std::string segment = (end == std::string::npos) ? info.substr(start) : info.substr(start, end - start);
+
+            if (segment.length() == 5 && 
+                isdigit(segment[0]) && isdigit(segment[1]) && isdigit(segment[2]) &&
+                segment[3] == ' ' && 
+                (segment[4] == '0' || segment[4] == '1')) {
+
+                std::string AID = segment.substr(0, 3);
+                char state = segment[4];
+
+                std::cout << "Auction ID: " << AID << ", State: " << (state == '1' ? "Active" : "Inactive") << std::endl;
+            } else {
+                std::cout << "WARNING: unexpected protocol message\n";
+            }
+
+            start = (end == std::string::npos) ? info.length() : end + 1;
+            end = info.find(' ', start + 4);
+        }
+
+}
+
+
+
+void ClientUDP::validateMyAuctionsResponse(std::string response_info){
+    if (response_info == "NOK\n")
+        std::cout << "user has no ongoing auctions\n";
+    else if (response_info == "NLG\n")
         std::cout << "user is not logged in\n";
-    else 
-        //TODO: Basta mensagem de erro?
+    else
         std::cout << "WARNING: unexpected protocol message\n";
+}
+
+
+void ClientUDP::validateMyBidsResponse(std::string response_info){
+    if (response_info == "NOK\n")
+        std::cout << "user has no ongoing bids\n";
+    else if (response_info == "NLG\n")
+        std::cout << "user is not logged in\n";
+    else
+        std::cout << "WARNING: unexpected protocol message\n";
+}
+
+
+void ClientUDP::validateAllAuctionsResponse(std::string response_info){
+    if (response_info == "NOK\n")
+        std::cout << "no auction was yet started\n";
+    else{
+        std::cout << "WARNING: unexpected protocol message\n";
+    }
 }

@@ -1,5 +1,6 @@
 #include "clientUDP.hpp"
 
+// ./AS -n 193.136.138.142 -p 58011
 
 int main(int argc, char *argv[]) {
     const char* port;
@@ -28,8 +29,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    std::cout << "port: " << port << std::endl;
-    std::cout << "asip: " << asip << std::endl;
+    //std::cout << "port: " << port << std::endl;
+    //std::cout << "asip: " << asip << std::endl;
 
     ClientUDP client(port, asip);
     client.run();
