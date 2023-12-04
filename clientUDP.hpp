@@ -31,13 +31,16 @@ class ClientUDP {
         std::string password;
         
         void readCommand();
+
         void handleLogin(const std::string& additionalInfo);
         void handleLogout(const std::string& additionalInfo);
         void handleUnregister(const std::string& additionalInfo);
         void handleMyAuctions(const std::string&additionalInfo);
         void handleMyBids(const std::string&additionalInfo);
         void handleAllAuctions(const std::string&additionalInfo);
+        void handleShowRecord(const std::string&additionalInfo);
         void handleExit();
+
         int loginValid();
         void sendAuthRequest(std::string responseType);  
         void sendLoginRequest();
@@ -56,15 +59,20 @@ class ClientUDP {
         void sendAllAuctionsRequest();
         void receiveAllAuctionsResponse();
         void receiveListResponse(std::string responseType);
+        void sendShowRecordRequest(const std::string& AID);
+        void receiveShowRecordResponse();
+
         void validateLogoutResponse(std::string response, std::string status);
         void validateLoginResponse(std::string response, std::string status);
         void validateMyAuctionsResponse(std::string response, std::string status);
-
+        //FIXME same name?
         void validateMyAuctionsResponse(std::string response_info);
         void validateMyBidsResponse(std::string response_info);
         void validateAllAuctionsResponse(std::string response_info);
+        void validateShowRecordResponse(std::string response_info);
 
         void parseAuctionInfo(std::string info);
+        void parseRecordInfo(std::string info);
 
 };
 
