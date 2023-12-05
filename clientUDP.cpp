@@ -13,7 +13,7 @@ ClientUDP::ClientUDP(const char* port, const char* asip) {
     if (errcode != 0) exit(1);
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd == -1) exit(1);
+    if (fd == -1) exit(1); //TODO remove all exits and handle errors
 }
 
 ClientUDP::~ClientUDP() {
@@ -21,70 +21,29 @@ ClientUDP::~ClientUDP() {
     close(fd);
 }
 
-void ClientUDP::run() {
-    while (!std::cin.eof() && !session_terminated) 
-        readCommand();
-}
-
-void ClientUDP::readCommand() {
-    std::string line;
-    std::string command;
-    std::string additionalInfo;
-
-    std::cout << "> ";
-    if (!getline(std::cin, line)) return;
-
-    size_t splitIndex = line.find(' ');
-
-    if (splitIndex != std::string::npos) {
-        command = line.substr(0, splitIndex);
-        additionalInfo = line.substr(splitIndex + 1); 
-    } else 
-        command = line;
-
-    if (command == "login") 
-        handleLogin(additionalInfo);
-    else if (command == "logout")
-        handleLogout(additionalInfo);
-    else if (command == "unregister")
-        handleUnregister(additionalInfo);
-    else if (command == "myauctions" || command == "ma")
-        handleMyAuctions(additionalInfo);
-    else if (command == "mybids" || command == "mb")
-        handleMyBids(additionalInfo);
-    else if (command == "list" || command == "l")
-        handleAllAuctions(additionalInfo);
-    else if (command == "show_record" || command == "sr")
-        handleShowRecord(additionalInfo);
-    else if (command == "exit") 
-        handleExit();
-    else 
-        std::cout << "command not found\n";
-}
-
-
-void ClientUDP::handleLogin(const std::string& additionalInfo) {
+void ClientUDP::handleLogin(const std::string& additionalInfo, std::string& uid, std::string& password) {
     if (!uid.empty()) {  //check if already logged in
         std::cout << "already logged in\n";
         return;
     }
 
     size_t splitIndex = additionalInfo.find(' ');
+    // read value from uid address
     uid = additionalInfo.substr(0, splitIndex);
     password = additionalInfo.substr(splitIndex + 1);
 
-    if (loginValid()) {  //check if credentials are valid
-        sendLoginRequest();
-        receiveLoginResponse();
+    if (loginValid(uid, password)) {  //check if credentials are valid
+        sendLoginRequest(uid, password);
+        receiveLoginResponse(uid, password);
     } else {
         std::cout << "invalid login format\n";
         uid = "";
-        password = ""; //FIXME should password be stored in client?
+        password = "";
     }
 }
 
 
-void ClientUDP::handleLogout(const std::string& additionalInfo) {
+void ClientUDP::handleLogout(const std::string& additionalInfo, std::string& uid, std::string& password) {
     if (!additionalInfo.empty()) {  //check valid format
         std::cout << "invalid logout format\n";
         return;
@@ -93,12 +52,12 @@ void ClientUDP::handleLogout(const std::string& additionalInfo) {
         std::cout << "user not logged in\n";
         return;
     }
-    sendLogoutRequest();
-    receiveLogoutResponse();
+    sendLogoutRequest(uid, password);
+    receiveLogoutResponse(uid, password);
 }
 
 
-void ClientUDP::handleUnregister(const std::string& additionalInfo) {
+void ClientUDP::handleUnregister(const std::string& additionalInfo, std::string& uid, std::string& password) {
     if (!additionalInfo.empty()) {  //check valid format
         std::cout << "invalid unregister format\n";
         return;
@@ -107,12 +66,12 @@ void ClientUDP::handleUnregister(const std::string& additionalInfo) {
         std::cout << "user not logged in\n";
         return;
     }
-    sendUnregisterRequest();
-    receiveUnregisterResponse();
+    sendUnregisterRequest(uid, password);
+    receiveUnregisterResponse(uid, password);
 }
 
 
-void ClientUDP::handleMyAuctions(const std::string&additionalInfo) {
+void ClientUDP::handleMyAuctions(const std::string&additionalInfo, std::string& uid) {
     if (!additionalInfo.empty()) {  //check valid format
         std::cout << "invalid command format\n";
         return;
@@ -123,12 +82,12 @@ void ClientUDP::handleMyAuctions(const std::string&additionalInfo) {
         return;
     }
 
-    sendMyAuctionsRequest();
+    sendMyAuctionsRequest(uid);
     receiveMyAuctionsResponse();
 }
 
 
-void ClientUDP::handleMyBids(const std::string& additionalInfo) {
+void ClientUDP::handleMyBids(const std::string& additionalInfo, std::string& uid) {
     if (!additionalInfo.empty()) {  //check valid format
         std::cout << "invalid unregister format\n";
         return;
@@ -137,11 +96,11 @@ void ClientUDP::handleMyBids(const std::string& additionalInfo) {
         std::cout << "user not logged in\n";
         return;
     }
-    sendMyBidsRequest();
+    sendMyBidsRequest(uid);
     receiveMyBidsResponse();
 }
 
-void ClientUDP::handleAllAuctions(const std::string& additionalInfo) {
+void ClientUDP::handleAllAuctions(const std::string& additionalInfo, std::string& uid) {
     if (!additionalInfo.empty()) {  //check valid format
         std::cout << "invalid unregister format\n";
         return;
@@ -150,11 +109,11 @@ void ClientUDP::handleAllAuctions(const std::string& additionalInfo) {
     receiveAllAuctionsResponse();
 }
 
-void ClientUDP::handleShowRecord(const std::string& additionalInfo){
+void ClientUDP::handleShowRecord(const std::string& additionalInfo, std::string& uid){
     /*if () {  //check valid format
-        std::cout << "invalid  AID\n";
+        std::cout << "invalid  aid\n";
         return;
-    }*/ //FIXME validade AID
+    }*/ //FIXME validade aid
 
     if (uid.empty()) {  //check if user is logged in
         std::cout << "user not logged in\n";
@@ -165,95 +124,71 @@ void ClientUDP::handleShowRecord(const std::string& additionalInfo){
     receiveShowRecordResponse();
 }
 
-void ClientUDP::handleExit() {
-    if (!uid.empty()) {  //check if user still logged in
-        std::cout << "logout is required\n";
-        return;
-    }
-    session_terminated = true;
-}
-
-
 //Send Requests
 
 
-void ClientUDP::sendAuthRequest(std::string requestType) {
-    // send login or logout message to server
-    ssize_t n;
-    char message[21];
-    std::ostringstream msgStream;
+// void ClientUDP::sendAuthRequest(std::string requestType, std::string uid, std::string password) {
+//     // send login or logout message to server
+//     ssize_t n;
+//     char message[21];
+//     std::ostringstream msgStream;
 
-    msgStream << requestType << " " << uid << " " << password << "\n";
-    std::string temp = msgStream.str();
+//     msgStream << requestType << " " << uid << " " << password << "\n";
+//     std::string temp = msgStream.str();
 
-    strncpy(message, temp.c_str(), sizeof(message) - 1);
-    message[20] = '\0';
+//     strncpy(message, temp.c_str(), sizeof(message) - 1);
+//     message[20] = '\0';
 
-    n = sendto(fd, message, 20, 0, res->ai_addr, res->ai_addrlen);
-    if (n == -1) exit(1);
+//     n = sendto(fd, message, 20, 0, res->ai_addr, res->ai_addrlen);
+//     if (n == -1) exit(1);
+// }
+
+
+void ClientUDP::sendLoginRequest(std::string& uid, std::string& password) {
+    if (sendto(fd, ("LIN " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
+        0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
-
-void ClientUDP::sendLoginRequest() {
-    sendAuthRequest("LIN");
+void ClientUDP::sendLogoutRequest(std::string& uid, std::string& password) {
+    if (sendto(fd, ("LOU " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
+        0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
-void ClientUDP::sendLogoutRequest() {
-    sendAuthRequest("LOU");
+void ClientUDP::sendUnregisterRequest(std::string& uid, std::string& password) {
+    if (sendto(fd, ("UNR " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
+        0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
-void ClientUDP::sendUnregisterRequest() {
-    sendAuthRequest("UNR");
+void ClientUDP::sendMyAuctionsRequest(std::string& uid) {
+    if (sendto(fd, ("LMA " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
-
-void ClientUDP::sendUIDRequest(std::string requestType) {
-    // send list request to server
-    ssize_t n;
-    char message[12];
-    std::ostringstream msgStream;
-
-    msgStream << requestType << " " << uid << "\n";
-    std::string temp = msgStream.str();
-
-    strncpy(message, temp.c_str(), sizeof(message) - 1);
-    message[11] = '\0';
-
-    n = sendto(fd, message, 11, 0, res->ai_addr, res->ai_addrlen);
-    if (n == -1) exit(1);
-}
-
-
-void ClientUDP::sendMyAuctionsRequest() {
-    sendUIDRequest("LMA");
-}
-
-void ClientUDP::sendMyBidsRequest() {
-    sendUIDRequest("LMB");
+void ClientUDP::sendMyBidsRequest(std::string& uid) {
+    if (sendto(fd, ("LMB " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 void ClientUDP::sendAllAuctionsRequest() {
     if (sendto(fd, "LST\n", 4, 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
-void ClientUDP::sendShowRecordRequest(const std::string& AID){
-  if (sendto(fd, ("SRC " + AID + "\n").c_str(), 5 + AID.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+void ClientUDP::sendShowRecordRequest(const std::string& aid){
+  if (sendto(fd, ("SRC " + aid + "\n").c_str(), 5 + aid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 
 //Receive Responses
 
 
-void ClientUDP::receiveLoginResponse(){
-    receiveAuthResponse("RLI");
+void ClientUDP::receiveLoginResponse(std::string& uid, std::string& password){ //FIXME this and logout don't need password
+    receiveAuthResponse("RLI", uid, password);
 }
 
-void ClientUDP::receiveLogoutResponse(){
-    receiveAuthResponse("RLO");
+void ClientUDP::receiveLogoutResponse(std::string& uid, std::string& password){
+    receiveAuthResponse("RLO", uid, password);
 }
 
-void ClientUDP::receiveUnregisterResponse(){
-    receiveAuthResponse("RUR");
+void ClientUDP::receiveUnregisterResponse(std::string& uid, std::string& password){
+    receiveAuthResponse("RUR", uid, password);
 }
 
 void ClientUDP::receiveMyAuctionsResponse(){
@@ -279,7 +214,7 @@ void ClientUDP::receiveShowRecordResponse(){
     socklen_t addrlen = sizeof(addr);
 
     ssize_t n = recvfrom(fd, buffer, 2161, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1);   // TODO remove all exits and handle errors
+    if (n == -1) exit(1); // TODO remove all exits and handle errors
 
     buffer[n] = '\0';
 
@@ -310,7 +245,7 @@ void ClientUDP::receiveShowRecordResponse(){
 }
 
 
-void ClientUDP::receiveAuthResponse(std::string responseType){
+void ClientUDP::receiveAuthResponse(std::string responseType, std::string& uid, std::string& password){
     char buffer[128];
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
@@ -324,13 +259,13 @@ void ClientUDP::receiveAuthResponse(std::string responseType){
     std::string status = std::string(buffer).substr(4);
 
     if (responseType == "RLI"){
-        validateLoginResponse(response, status);
+        validateLoginResponse(response, status, uid, password);
     }
     else if (responseType == "RLO"){
-        validateLogoutResponse(response, status);
+        validateLogoutResponse(response, status, uid, password);
     }
     else if (responseType == "RUR"){
-        validateUnregisterResponse(response, status);
+        validateUnregisterResponse(response, status, uid, password);
     }
 
 }
@@ -357,7 +292,6 @@ void ClientUDP::receiveListResponse(std::string responseType){
     ssize_t splitIndex = response_info.find(' ');
 
     if (splitIndex != std::string::npos) {
-        // no auctions received in the response or error FIXME comment related to if?
         std::string status = response_info.substr(0, splitIndex);
         if (status != "OK") {
             std::cout << "WARNING: unexpected protocol message\n";
@@ -367,7 +301,7 @@ void ClientUDP::receiveListResponse(std::string responseType){
         std::string info = response_info.substr(splitIndex + 1);
         parseAuctionInfo(info);
     } 
-    else {
+    else { // no auctions received in the response or error
         if (responseType == "RMA")
             validateMyAuctionsResponse(response_info);
         else if (responseType == "RMB")
@@ -381,13 +315,13 @@ void ClientUDP::receiveListResponse(std::string responseType){
 
 
 void ClientUDP::parseAuctionInfo(std::string info){
-    // info in the format: [ AID state]*
+    // info in the format: [ aid state]*
     if (info.empty() || info.back() != '\n') {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
 
-    info.pop_back();    // remove newline at the end of the string
+    info.pop_back(); // remove newline at the end of the string
 
     size_t start = 0;
     size_t end = info.find(' ', start + 4);
@@ -400,11 +334,11 @@ void ClientUDP::parseAuctionInfo(std::string info){
             segment[3] == ' ' && 
             (segment[4] == '0' || segment[4] == '1')) {
 
-            std::string AID = segment.substr(0, 3);
+            std::string aid = segment.substr(0, 3);
             char state = segment[4];
 
-            std::cout << "Auction ID: " << AID << ", State: " << (state == '1' ? "Active" : "Inactive") << std::endl;
-        } else { // do the same with parse record info?
+            std::cout << "Auction ID: " << aid << ", State: " << (state == '1' ? "Active" : "Inactive") << std::endl;
+        } else { // FIXME do the same with parse record info?
             std::cout << "WARNING: unexpected protocol message\n";
         }
 
@@ -419,15 +353,15 @@ void ClientUDP::parseRecordInfo(std::string info){
     // [ B bidder_UID bid_value bid_date-time bid_sec_time]*
     // [ E end_date-time end_sec_time]
     if (info.empty() || info.back() != '\n') {
-            std::cout << "WARNING: unexpected protocol message\n";
-            return;
-        }
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
 
     info.pop_back();    // remove newline at the end of the string
 
     size_t start = 0;
     size_t end;
-
+    //FIXME check if there is no double spaces between fields
     // parse [host_UID auction_name asset_fname start_value start_date-time timeactive]
 
     std::cout << "RECORD INFO\n" << std::endl;
@@ -480,7 +414,7 @@ void ClientUDP::parseRecordInfo(std::string info){
 // Validations
 
 
-int ClientUDP::loginValid() {
+int ClientUDP::loginValid(std::string& uid, std::string& password) {
     if (uid.length() == 6 && all_of(uid.begin(), uid.end(), ::isdigit)
         && password.length() == 8 && all_of(password.begin(), password.end(), ::isalnum)) {
         return 1;
@@ -488,7 +422,7 @@ int ClientUDP::loginValid() {
         return 0;
 }
 
-void ClientUDP::validateLoginResponse(std::string response, std::string status){
+void ClientUDP::validateLoginResponse(std::string response, std::string status, std::string& uid, std::string& password){
     if (response != "RLI"){
         //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
         // mensagens deste protocolo, então devem ser rejeitadas. error message sufficient?
@@ -510,7 +444,7 @@ void ClientUDP::validateLoginResponse(std::string response, std::string status){
         std::cout << "WARNING: unexpected protocol message\n";
 }
 
-void ClientUDP::validateLogoutResponse(std::string response, std::string status){
+void ClientUDP::validateLogoutResponse(std::string response, std::string status, std::string& uid, std::string& password){
     if (response != "RLO"){
         //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
         // mensagens deste protocolo, então devem ser rejeitadas. error message sufficient?
@@ -534,7 +468,7 @@ void ClientUDP::validateLogoutResponse(std::string response, std::string status)
 
 
 
-void ClientUDP::validateUnregisterResponse(std::string response, std::string status){
+void ClientUDP::validateUnregisterResponse(std::string response, std::string status, std::string& uid, std::string& password){
     if (response != "RUR"){
         //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
         // mensagens deste protocolo, então devem ser rejeitadas.error message sufficient?

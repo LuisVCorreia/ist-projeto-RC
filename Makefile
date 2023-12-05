@@ -4,7 +4,7 @@ CC = g++
 
 TARGET = AS
 
-SOURCES = User.cpp clientUDP.cpp
+SOURCES = User.cpp Client.cpp clientUDP.cpp clientTCP.cpp
 
 all:
 	$(CC) -o $(TARGET) $(SOURCES)

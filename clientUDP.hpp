@@ -20,52 +20,43 @@ class ClientUDP {
     public:
         ClientUDP(const char* port, const char* asip);
         ~ClientUDP();
-        void run();
+
+
+        void handleLogin(const std::string& additionalInfo, std::string& uid, std::string& password);
+        void handleLogout(const std::string& additionalInfo, std::string& uid, std::string& password);
+        void handleUnregister(const std::string& additionalInfo, std::string& uid, std::string& password);
+        void handleMyAuctions(const std::string&additionalInfo, std::string& uid);
+        void handleMyBids(const std::string&additionalInfo, std::string& uid);
+        void handleAllAuctions(const std::string&additionalInfo, std::string& uid);
+        void handleShowRecord(const std::string&additionalInfo, std::string& uid);
 
     private:
         int fd;
         struct addrinfo *res;
         std::string asip;
-        bool session_terminated = false;
-        std::string uid;
-        std::string password;
         
-        void readCommand();
-
-        void handleLogin(const std::string& additionalInfo);
-        void handleLogout(const std::string& additionalInfo);
-        void handleUnregister(const std::string& additionalInfo);
-        void handleMyAuctions(const std::string&additionalInfo);
-        void handleMyBids(const std::string&additionalInfo);
-        void handleAllAuctions(const std::string&additionalInfo);
-        void handleShowRecord(const std::string&additionalInfo);
-        void handleExit();
-
-        int loginValid();
-        void sendAuthRequest(std::string responseType);  
-        void sendLoginRequest();
-        void receiveLoginResponse();
-        void receiveAuthResponse(std::string requestType);
-        void validateUnregisterResponse(std::string response, std::string status);
-        void sendLogoutRequest();
-        void receiveLogoutResponse();
-        void sendUnregisterRequest();
-        void receiveUnregisterResponse();
-        void sendMyAuctionsRequest();
-        void sendUIDRequest(std::string requestType);
+        int loginValid(std::string& uid, std::string& password);
+        //void sendAuthRequest(std::string responseType, std::string uid, std::string password);  
+        void sendLoginRequest(std::string& uid, std::string& password);
+        void receiveLoginResponse(std::string& uid, std::string& password);
+        void receiveAuthResponse(std::string requestType, std::string& uid, std::string& password);
+        void sendLogoutRequest(std::string& uid, std::string& password);
+        void receiveLogoutResponse(std::string& uid, std::string& password);
+        void sendUnregisterRequest(std::string& uid, std::string& password);
+        void receiveUnregisterResponse(std::string& uid, std::string& password);
+        void sendMyAuctionsRequest(std::string& uid);
         void receiveMyAuctionsResponse();
-        void sendMyBidsRequest();
+        void sendMyBidsRequest(std::string& uid);
         void receiveMyBidsResponse();
         void sendAllAuctionsRequest();
         void receiveAllAuctionsResponse();
         void receiveListResponse(std::string responseType);
-        void sendShowRecordRequest(const std::string& AID);
+        void sendShowRecordRequest(const std::string& aid);
         void receiveShowRecordResponse();
 
-        void validateLogoutResponse(std::string response, std::string status);
-        void validateLoginResponse(std::string response, std::string status);
-        void validateMyAuctionsResponse(std::string response, std::string status);
-        //FIXME same name?
+        void validateLogoutResponse(std::string response, std::string status, std::string& uid, std::string& password);
+        void validateLoginResponse(std::string response, std::string status, std::string& uid, std::string& password);
+        void validateUnregisterResponse(std::string response, std::string status, std::string& uid, std::string& password);
         void validateMyAuctionsResponse(std::string response_info);
         void validateMyBidsResponse(std::string response_info);
         void validateAllAuctionsResponse(std::string response_info);
@@ -73,7 +64,7 @@ class ClientUDP {
 
         void parseAuctionInfo(std::string info);
         void parseRecordInfo(std::string info);
-
+       
 };
 
 #endif
