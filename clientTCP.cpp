@@ -91,20 +91,35 @@ void ClientTCP::handleBid(const std::string& additionalInfo, const std::string& 
         return;
     }
 
-    // validate additionalInfo
-
-    // check aid is valid
-    if (auctionInfo.name.length() > 10 || auctionInfo.name.length() == 0 ||
-        !std::all_of(auctionInfo.name.begin(), auctionInfo.name.end(), ::isalnum)) {
-        std::cout << "Invalid description name" << std::endl;
-        return false;
-    }
-
     std::string aid = std::string(additionalInfo).substr(0, 3);
     std::string value = std::string(additionalInfo).substr(4);
 
     sendBidRequest(uid, password, aid, value);
     receiveBidResponse();
+}
+
+
+void ClientTCP::handleClose(const std::string& additionalInfo, const std::string& uid, const std::string& password) {
+    std::string aid = additionalInfo;
+
+    if (uid.empty()) {  //check if user is logged in
+        std::cout << "user not logged in\n";
+        return;
+    }
+
+    // check aid is valid
+
+    if (aid.length() != 3 || !std::all_of(aid.begin(), aid.end(), ::isdigit)) {
+        std::cout << "Invalid AID format" << std::endl;
+        return;
+    }
+
+
+    // send request
+    if (!sendCloseRequest(uid, password, aid)) return;
+
+    // receive response
+    receiveCloseResponse(uid, aid);
 }
 
 
@@ -151,6 +166,16 @@ void ClientTCP::sendBidRequest(const std::string& uid, const std::string& passwo
     if(n==-1)/*error*/exit(1);
 }
 
+bool ClientTCP::sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid) {
+    createTCPConn();
+
+    // send request
+    
+    ssize_t n = write(fd, ("CLS " + uid + " " + password + " " + aid + "\n").c_str(), 24); 
+    if(n==-1) return false;
+    return true;
+}
+
 
 // Receive Responses
 
@@ -166,7 +191,7 @@ void ClientTCP::receiveOpenResponse() {
     } 
 
     if (buffer[n - 1] != '\n') {
-        std::cout << "Invalid response format" << std::endl;
+        std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
 
@@ -176,7 +201,7 @@ void ClientTCP::receiveOpenResponse() {
     response_code = std::string(response).substr(0, 3);
 
     if (response_code != "ROA") {
-        std::cout << "Invalid response code" << std::endl;
+        std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
     ssize_t posSpace = response.find(' ', 4);
@@ -256,13 +281,7 @@ void ClientTCP::receiveBidResponse() {
 
     // receive response
 
-    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {
-        // Null-terminate the received data
-        buffer[n] = '\0';
-
-        // Append the received data to the string
-        receivedData += buffer;
-    }
+    
 
     // parse received data
     //TODO validate
@@ -290,6 +309,49 @@ void ClientTCP::receiveBidResponse() {
 
     
     closeTCPConn();
+}
+
+void ClientTCP::receiveCloseResponse(const std::string& uid, const std::string& aid) {
+    char buffer[9];
+    std::string response, response_code, status;
+
+    ssize_t n = read(fd, buffer, 8);
+    closeTCPConn();
+    if (n == -1) {
+        return;
+    } 
+
+    if (buffer[n - 1] != '\n') {
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
+
+    buffer[n] = '\0';  // null-terminate the buffer
+    response = std::string(buffer);
+
+    response_code = std::string(response).substr(0, 3);
+    status = std::string(response).substr(4);
+
+    if (response_code != "RCL"){
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
+
+    if (status == "OK\n") 
+        std::cout << "auction " << aid << " closed successfully\n";
+    else if (status == "NOK\n") 
+        std::cout << "user " << uid << " does not exist or the password is incorrect\n";
+    else if (status == "NLG\n") 
+        std::cout << "user not logged in\n";
+    else if (status == "EAU\n") 
+        std::cout << "auction " << aid << " does not exist\n";
+    else if (status == "EOW\n") 
+        std::cout << "auction is not owned by user " << uid << "\n";
+    else if (status == "END\n") 
+        std::cout << "auction " << aid << " owned by user " << uid << " has already finished\n";
+    else 
+        std::cout << "WARNING: unexpected protocol message\n";
+    
 }
 
 

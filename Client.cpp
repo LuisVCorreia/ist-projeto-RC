@@ -46,6 +46,8 @@ void Client::readCommand() {
         clientTCP.handleShowAsset(additionalInfo);
     else if (command == "bid" || command == "b")
         clientTCP.handleBid(additionalInfo, uid, password);
+    else if (command == "close")
+        clientTCP.handleClose(additionalInfo, uid, password);
     else if (command == "exit") 
         handleExit();
     else 

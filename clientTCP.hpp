@@ -27,6 +27,7 @@ class ClientTCP {
         void handleOpen(std::string& additionalInfo, std::string& uid, std::string& password);
         void handleShowAsset(const std::string& additionalInfo);
         void handleBid(const std::string& additionalInfo, const std::string& uid, const std::string& password);
+        void handleClose(const std::string& additionalInfo, const std::string& uid, const std::string& password);
 
         struct AuctionInfo {
             std::string name;
@@ -49,11 +50,12 @@ class ClientTCP {
         bool parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
         bool sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo);
         void receiveOpenResponse();
-
         void sendShowAssetRequest(const std::string& aid);
         void receiveShowAssetResponse();
         void sendBidRequest(const std::string& uid, const std::string& password, const std::string aid , const std::string value);
         void receiveBidResponse();
+        bool sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid);
+        void receiveCloseResponse(const std::string& uid, const std::string& aid);
 };
 
 #endif
