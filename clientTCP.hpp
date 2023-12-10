@@ -25,6 +25,8 @@ class ClientTCP {
         ClientTCP(const char* port, const char* asip);
         ~ClientTCP();
         void handleOpen(std::string& additionalInfo, std::string& uid, std::string& password);
+        void handleShowAsset(const std::string& additionalInfo);
+        void handleBid(const std::string& additionalInfo, const std::string& uid, const std::string& password);
 
         struct AuctionInfo {
             std::string name;
@@ -41,11 +43,17 @@ class ClientTCP {
 
         void createTCPConn();
         void closeTCPConn();
+        
         bool isFnameValid(std::string& fname);
         std::string readFileBinary(const std::string& fname);
         bool parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
         bool sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo);
         void receiveOpenResponse();
+
+        void sendShowAssetRequest(const std::string& aid);
+        void receiveShowAssetResponse();
+        void sendBidRequest(const std::string& uid, const std::string& password, const std::string aid , const std::string value);
+        void receiveBidResponse();
 };
 
 #endif

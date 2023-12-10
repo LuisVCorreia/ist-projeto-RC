@@ -42,6 +42,10 @@ void Client::readCommand() {
         clientUDP.handleShowRecord(additionalInfo, uid);
     else if (command == "open")
         clientTCP.handleOpen(additionalInfo, uid, password);
+    else if (command == "show_asset" || command == "sa")
+        clientTCP.handleShowAsset(additionalInfo);
+    else if (command == "bid" || command == "b")
+        clientTCP.handleBid(additionalInfo, uid, password);
     else if (command == "exit") 
         handleExit();
     else 
