@@ -21,7 +21,8 @@ class ClientUDP {
         ClientUDP(const char* port, const char* asip);
         ~ClientUDP();
 
-
+        void createUDPConn();
+        void closeUDPConn();
         void handleLogin(const std::string& additionalInfo, std::string& uid, std::string& password);
         void handleLogout(const std::string& additionalInfo, std::string& uid, std::string& password);
         void handleUnregister(const std::string& additionalInfo, std::string& uid, std::string& password);
@@ -36,7 +37,6 @@ class ClientUDP {
         std::string asip;
         
         int loginValid(std::string& uid, std::string& password);
-        //void sendAuthRequest(std::string responseType, std::string uid, std::string password);  
         void sendLoginRequest(std::string& uid, std::string& password);
         void receiveLoginResponse(std::string& uid, std::string& password);
         void receiveAuthResponse(std::string requestType, std::string& uid, std::string& password);

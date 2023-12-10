@@ -2,6 +2,9 @@
 #define CLIENTTCP_H
 
 #include <iostream>
+#include <fstream>
+#include <vector>
+#include <sstream>
 #include <string>
 #include <netdb.h>
 #include <unistd.h>
@@ -21,12 +24,28 @@ class ClientTCP {
     public:
         ClientTCP(const char* port, const char* asip);
         ~ClientTCP();
-        void handleTest();
+        void handleOpen(std::string& additionalInfo, std::string& uid, std::string& password);
+
+        struct AuctionInfo {
+            std::string name;
+            std::string asset_fname;
+            std::string start_value;
+            std::string timeactive;
+            std::string fdata; 
+        };
     
     private:
         int fd;
         struct addrinfo *res;
         std::string asip;
+
+        void createTCPConn();
+        void closeTCPConn();
+        bool isFnameValid(std::string& fname);
+        std::string readFileBinary(const std::string& fname);
+        bool parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
+        bool sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo);
+        void receiveOpenResponse();
 };
 
 #endif

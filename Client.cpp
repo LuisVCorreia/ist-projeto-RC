@@ -40,10 +40,10 @@ void Client::readCommand() {
         clientUDP.handleAllAuctions(additionalInfo, uid);
     else if (command == "show_record" || command == "sr")
         clientUDP.handleShowRecord(additionalInfo, uid);
+    else if (command == "open")
+        clientTCP.handleOpen(additionalInfo, uid, password);
     else if (command == "exit") 
         handleExit();
-    else if (command == "test")
-        clientTCP.handleTest();
     else 
         std::cout << "command not found\n";
 }
