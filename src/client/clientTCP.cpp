@@ -1,9 +1,9 @@
 #include "clientTCP.hpp"
 
-ClientTCP::ClientTCP(const char* port, const char* asip) {
+ClientTCP::ClientTCP(const char* port, const char* asip_chosen) {
     struct addrinfo hints;
     int errcode;
-    this->asip = asip; 
+    this->asip = asip_chosen; 
     struct sigaction act;
     act.sa_handler=SIG_IGN;
   
@@ -195,7 +195,7 @@ void ClientTCP::receiveOpenResponse() {
         return;
     }
 
-    buffer[n] = '\0';  // null-terminate the buffer
+    buffer[static_cast<size_t>(n)] = '\0';  // null-terminate the buffer
     response = std::string(buffer);
 
     response_code = std::string(response).substr(0, 3);
@@ -204,10 +204,11 @@ void ClientTCP::receiveOpenResponse() {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
-    ssize_t posSpace = response.find(' ', 4);
+    auto posSpace = response.find(' ', 4);
 
-    status = std::string(response).substr(4, 
-            posSpace != std::string::npos ? posSpace - 4: n);
+    status = std::string(response).substr(4, posSpace != std::string::npos ? 
+        posSpace - 4 : static_cast<size_t>(n));
+
 
     if (status == "OK"){
         std::string newAID = std::string(response).substr(posSpace + 1); // newAID contains '\n'
@@ -258,14 +259,14 @@ void ClientTCP::receiveShowAssetResponse() {
 
     // convert fsizeStr to integer
 
-    size_t fsize = std::stoi(fsizeStr.c_str());
+    size_t fsize = std::stoul(fsizeStr);
 
     // write file data
     std::ofstream outfile;
     
     outfile.open(fname, std::ios::binary);
 
-    outfile.write(receivedData.c_str() + iss.tellg() + 1, fsize);
+    outfile.write(receivedData.c_str() + iss.tellg() + 1, static_cast<std::streamsize>(fsize));
 
     outfile.close();
 
@@ -275,8 +276,8 @@ void ClientTCP::receiveShowAssetResponse() {
 
 
 void ClientTCP::receiveBidResponse() {
-    char buffer[1024];
-    ssize_t n;
+    //char buffer[1024];
+    //ssize_t n;
     std::string receivedData;
 
     // receive response
@@ -380,7 +381,7 @@ bool ClientTCP::isFnameValid(std::string& fname) {
     // check fname is limited to a total of 24 alphanumerical characters 
     // (plus ‘-‘, ‘_’ and ‘.’), including the separating dot and the 3-letter extension: “nnn…nnnn.xxx”.
 
-    int len = fname.length();
+    auto len = fname.length();
     if (len <= 24 && len >= 5 && fname[len - 4] == '.') {
 
         auto isValidChar = [](char c) { // lambda function
