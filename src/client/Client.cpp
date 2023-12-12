@@ -37,7 +37,7 @@ void Client::readCommand() {
     else if (command == "mybids" || command == "mb")
         clientUDP.handleMyBids(additionalInfo, uid);
     else if (command == "list" || command == "l")
-        clientUDP.handleAllAuctions(additionalInfo, uid);
+        clientUDP.handleAllAuctions(additionalInfo);
     else if (command == "show_record" || command == "sr")
         clientUDP.handleShowRecord(additionalInfo, uid);
     else if (command == "open")

@@ -1,4 +1,4 @@
-#include "clientUDP.hpp"
+#include "client/clientUDP.hpp"
 
 //TODO Fix for server
 
@@ -26,13 +26,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    //std::cout << "port: " << port << std::endl;
-    //std::cout << "verbose: " << verbose << std::endl;
-
-    ClientUDP client(port, verbose);
-    client.run();
-
-    //TODO: implement verbose mode
+    std::cout << "port: " << port << std::endl;
+    std::cout << "verbose: " << verbose << std::endl;
 
     return 0;
 }

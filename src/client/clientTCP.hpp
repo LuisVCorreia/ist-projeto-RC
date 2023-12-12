@@ -40,7 +40,7 @@ class ClientTCP {
     private:
         int fd;
         struct addrinfo *res;
-        std::string asip;
+        const char* asip;
 
         void createTCPConn();
         void closeTCPConn();

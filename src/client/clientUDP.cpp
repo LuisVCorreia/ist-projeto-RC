@@ -1,9 +1,9 @@
 #include "clientUDP.hpp"
 
-ClientUDP::ClientUDP(const char* port, const char* asip) {
+ClientUDP::ClientUDP(const char* port, const char* asip_chosen) {
     struct addrinfo hints;
     int errcode;
-    this->asip = asip; 
+    this->asip = asip_chosen; 
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -106,7 +106,7 @@ void ClientUDP::handleMyBids(const std::string& additionalInfo, std::string& uid
     receiveMyBidsResponse();
 }
 
-void ClientUDP::handleAllAuctions(const std::string& additionalInfo, std::string& uid) {
+void ClientUDP::handleAllAuctions(const std::string& additionalInfo) {
     if (!additionalInfo.empty()) {  //check valid format
         std::cout << "invalid unregister format\n";
         return;
@@ -224,7 +224,7 @@ void ClientUDP::receiveShowRecordResponse(){
         return;
     }
 
-    ssize_t splitIndex = response_info.find(' ');
+    auto splitIndex = response_info.find(' ');
 
     if (splitIndex != std::string::npos) {
         // no auctions received in the response or error
@@ -291,7 +291,7 @@ void ClientUDP::receiveListResponse(std::string responseType){
         return;
     }
 
-    ssize_t splitIndex = response_info.find(' ');
+    auto splitIndex = response_info.find(' ');
 
     if (splitIndex != std::string::npos) {
         std::string status = response_info.substr(0, splitIndex);

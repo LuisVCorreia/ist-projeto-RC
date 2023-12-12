@@ -28,13 +28,13 @@ class ClientUDP {
         void handleUnregister(const std::string& additionalInfo, std::string& uid, std::string& password);
         void handleMyAuctions(const std::string&additionalInfo, std::string& uid);
         void handleMyBids(const std::string&additionalInfo, std::string& uid);
-        void handleAllAuctions(const std::string&additionalInfo, std::string& uid);
+        void handleAllAuctions(const std::string&additionalInfo);
         void handleShowRecord(const std::string&additionalInfo, std::string& uid);
 
     private:
         int fd;
         struct addrinfo *res;
-        std::string asip;
+        const char* asip;
         
         int loginValid(std::string& uid, std::string& password);
         void sendLoginRequest(std::string& uid, std::string& password);
