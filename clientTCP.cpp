@@ -73,9 +73,9 @@ void ClientTCP::handleOpen(std::string& additionalInfo, std::string& uid, std::s
 
 
 void ClientTCP::handleShowAsset(const std::string& additionalInfo) {
+    std::string aid = additionalInfo;
 
-    if (additionalInfo.length() != 3 || 
-        !std::all_of(additionalInfo.begin(), additionalInfo.end(), ::isdigit)) {
+    if (!isAidValid(aid)) {
         std::cout << "Invalid AID format" << std::endl;
         return;
     }
@@ -94,6 +94,11 @@ void ClientTCP::handleBid(const std::string& additionalInfo, const std::string& 
     std::string aid = std::string(additionalInfo).substr(0, 3);
     std::string value = std::string(additionalInfo).substr(4);
 
+    if (!isAidValid(aid)) {
+        std::cout << "Invalid AID format" << std::endl;
+        return;
+    }
+
     sendBidRequest(uid, password, aid, value);
     receiveBidResponse();
 }
@@ -107,13 +112,10 @@ void ClientTCP::handleClose(const std::string& additionalInfo, const std::string
         return;
     }
 
-    // check aid is valid
-
-    if (aid.length() != 3 || !std::all_of(aid.begin(), aid.end(), ::isdigit)) {
+    if (!isAidValid(aid)) {
         std::cout << "Invalid AID format" << std::endl;
         return;
     }
-
 
     // send request
     if (!sendCloseRequest(uid, password, aid)) return;
@@ -147,6 +149,17 @@ bool ClientTCP::sendOpenRequest(std::string& uid, std::string& password, Auction
 }
 
 
+bool ClientTCP::sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid) {
+    createTCPConn();
+
+    // send request
+    
+    ssize_t n = write(fd, ("CLS " + uid + " " + password + " " + aid + "\n").c_str(), 24); 
+    if(n==-1) return false;
+    return true;
+}
+
+
 void ClientTCP::sendShowAssetRequest(const std::string& aid) {
     createTCPConn();
 
@@ -164,16 +177,6 @@ void ClientTCP::sendBidRequest(const std::string& uid, const std::string& passwo
     
     ssize_t n = write(fd, ("BID " + uid + " " + password + " " + aid + " " + value + "\n").c_str(), 25+value.size()); 
     if(n==-1)/*error*/exit(1);
-}
-
-bool ClientTCP::sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid) {
-    createTCPConn();
-
-    // send request
-    
-    ssize_t n = write(fd, ("CLS " + uid + " " + password + " " + aid + "\n").c_str(), 24); 
-    if(n==-1) return false;
-    return true;
 }
 
 
@@ -355,24 +358,11 @@ void ClientTCP::receiveCloseResponse(const std::string& uid, const std::string& 
 }
 
 
-// Auxiliary Functions
+// Validation
 
 
-std::string ClientTCP::readFileBinary(const std::string& fname) {
-    std::ifstream file(fname, std::ios::binary);
-    if (!file) {
-        std::cout << "Cannot open file: " << fname << std::endl;
-        return "";
-    }
-
-    std::ostringstream oss;
-    oss << file.rdbuf(); // read the file
-
-    if (!oss) {
-        std::cout << "Failed to read file: " << fname << std::endl;
-        return "";
-    }
-    return oss.str();
+bool ClientTCP::isAidValid(std::string& aid) {
+    return (aid.length() == 3 && std::all_of(aid.begin(), aid.end(), ::isdigit));
 }
 
 
@@ -397,6 +387,27 @@ bool ClientTCP::isFnameValid(std::string& fname) {
         return false;
     }
     return true;
+}
+
+
+// Auxiliary Functions
+
+
+std::string ClientTCP::readFileBinary(const std::string& fname) {
+    std::ifstream file(fname, std::ios::binary);
+    if (!file) {
+        std::cout << "Cannot open file: " << fname << std::endl;
+        return "";
+    }
+
+    std::ostringstream oss;
+    oss << file.rdbuf(); // read the file
+
+    if (!oss) {
+        std::cout << "Failed to read file: " << fname << std::endl;
+        return "";
+    }
+    return oss.str();
 }
 
 
@@ -436,4 +447,4 @@ bool ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionI
     }
 
     return true;
-} 
+}
