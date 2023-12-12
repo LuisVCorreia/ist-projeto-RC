@@ -174,9 +174,9 @@ void ClientTCP::sendBidRequest(const std::string& uid, const std::string& passwo
     createTCPConn();
 
     // send request
-    
     ssize_t n = write(fd, ("BID " + uid + " " + password + " " + aid + " " + value + "\n").c_str(), 25+value.size()); 
     if(n==-1)/*error*/exit(1);
+
 }
 
 
@@ -279,16 +279,22 @@ void ClientTCP::receiveShowAssetResponse() {
 
 
 void ClientTCP::receiveBidResponse() {
-    //char buffer[1024];
-    //ssize_t n;
+    char buffer[1024];
+    ssize_t n;
     std::string receivedData;
 
     // receive response
 
-    
+    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {
+        // Null-terminate the received data
+        buffer[n] = '\0';
 
+        // Append the received data to the string
+        receivedData += buffer;
+    }    
+    
     // parse received data
-    //TODO validate
+    //TODO validate receivedData
     std::string response_code = std::string(receivedData).substr(0, 3);
     std::string status = std::string(receivedData).substr(4, 3);
 

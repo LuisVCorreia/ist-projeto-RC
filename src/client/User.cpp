@@ -1,6 +1,6 @@
 #include "Client.hpp"
 
-// ./AS -n 193.136.138.142 -p 58011
+// ./user -n 193.136.138.142 -p 58011
 
 int main(int argc, char *argv[]) {
     const char* port;

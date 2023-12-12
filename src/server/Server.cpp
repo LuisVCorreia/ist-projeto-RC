@@ -1,4 +1,4 @@
-#include "client/clientUDP.hpp"
+#include "AS.hpp"
 
 //TODO Fix for server
 
@@ -28,6 +28,9 @@ int main(int argc, char *argv[]) {
 
     std::cout << "port: " << port << std::endl;
     std::cout << "verbose: " << verbose << std::endl;
+
+    AS as(port);
+    as.run();
 
     return 0;
 }
