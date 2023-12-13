@@ -10,7 +10,12 @@ class Client {
         Client(const char* port, const char* asip);
         void run();
 
+        static void setCurrentClientInstance(Client* instance);
+        static void sigintHandler(int signum);
+        
+
     private:
+        static Client* currentInstance;
         ClientUDP clientUDP;
         ClientTCP clientTCP;
         bool session_terminated = false;
@@ -18,6 +23,7 @@ class Client {
         std::string password;
         void readCommand();
         void handleExit();
+        void logoutIfLoggedIn();
 };
 
 

@@ -1,5 +1,7 @@
 #include "Client.hpp"
 
+Client* Client::currentInstance = nullptr; // Initialize the static pointer
+
 Client::Client(const char* port, const char* asip)
     : clientUDP(port, asip), clientTCP(port, asip) {
 }
@@ -62,6 +64,24 @@ void Client::handleExit() {
     session_terminated = true;
 }
 
+void Client::setCurrentClientInstance(Client* instance) {
+    currentInstance = instance;
+}
+
+void Client::sigintHandler(int signum) {
+    if (currentInstance != nullptr) {
+        currentInstance->logoutIfLoggedIn();
+    }
+    exit(signum);
+}
+
+void Client::logoutIfLoggedIn() {
+    std::cout << std::endl;
+    if (!uid.empty()) {
+        clientUDP.sendLogoutRequest(uid, password);
+        clientUDP.receiveLogoutResponse(uid, password);
+    }
+}
 
 
 

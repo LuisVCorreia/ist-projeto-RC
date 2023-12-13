@@ -29,12 +29,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    //std::cout << "port: " << port << std::endl;
-    //std::cout << "asip: " << asip << std::endl; FIXME delete
-
     Client client(port, asip);
-    client.run();
+    Client::setCurrentClientInstance(&client); // method to set the current instance
 
+    struct sigaction sigIntHandler;
+    sigIntHandler.sa_handler = Client::sigintHandler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = 0;
+    sigaction(SIGINT, &sigIntHandler, NULL);
+
+    client.run();
 
     return 0;
 }

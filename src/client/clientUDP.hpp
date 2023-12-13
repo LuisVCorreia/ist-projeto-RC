@@ -31,6 +31,9 @@ class ClientUDP {
         void handleAllAuctions(const std::string&additionalInfo);
         void handleShowRecord(const std::string&additionalInfo, std::string& uid);
 
+        void sendLogoutRequest(std::string& uid, std::string& password);
+        void receiveLogoutResponse(std::string& uid, std::string& password);
+
     private:
         int fd;
         struct addrinfo *res;
@@ -40,8 +43,6 @@ class ClientUDP {
         void sendLoginRequest(std::string& uid, std::string& password);
         void receiveLoginResponse(std::string& uid, std::string& password);
         void receiveAuthResponse(std::string requestType, std::string& uid, std::string& password);
-        void sendLogoutRequest(std::string& uid, std::string& password);
-        void receiveLogoutResponse(std::string& uid, std::string& password);
         void sendUnregisterRequest(std::string& uid, std::string& password);
         void receiveUnregisterResponse(std::string& uid, std::string& password);
         void sendMyAuctionsRequest(std::string& uid);

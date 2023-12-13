@@ -393,7 +393,7 @@ bool ClientTCP::readTCPdata(std::string& response) {
 
 
 std::string ClientTCP::readFileBinary(const std::string& fname) {
-    std::ifstream file("client/" + fname, std::ios::binary);
+    std::ifstream file("src/client/" + fname, std::ios::binary);
     if (!file) {
         std::cout << "Cannot open file: " << fname << std::endl;
         return "";
