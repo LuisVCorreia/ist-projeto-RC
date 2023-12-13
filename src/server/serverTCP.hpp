@@ -9,10 +9,16 @@
 #include <netdb.h>     
 #include <unistd.h>     
 #include <cstdio>
+#include <string>
+#include <iostream>
+#include <algorithm>
+#include <utils.hpp>
+
 
 class ServerTCP {
     public:
-        ServerTCP(const char* port, int& tcp_socket);
+        ServerTCP(const char* port, int& socketTCP);
+        void receiveRequest(int& socketTCP);
 
     private:
         struct addrinfo hints, *res;

@@ -58,8 +58,8 @@ class ClientTCP {
         bool isAidValid(std::string& aid);
         bool isFnameValid(std::string& fname);
 
+        bool readTCPdata(std::string& response);
         std::string readFileBinary(const std::string& fname);
-
         bool parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
         
 };

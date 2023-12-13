@@ -1,8 +1,13 @@
 #include "AS.hpp"
-
-//TODO Fix for server
+#include <signal.h>
 
 int main(int argc, char *argv[]) {
+    struct sigaction act;
+    memset(&act,0,sizeof act);
+    act.sa_handler=SIG_IGN;
+    if(sigaction(SIGPIPE,&act,NULL)==-1)/*error*/std::cout << "Lost connection to user\n"; //TODO should we handle this?
+
+
     bool verbose = false;
     const char* port;
     if (argc == 1) {

@@ -9,13 +9,20 @@
 #include <netdb.h>     
 #include <unistd.h>     
 #include <cstdio>
+#include <string>
+#include <iostream>
+#include <algorithm>
+#include <utils.hpp>
 
 class ServerUDP {
     public:
-        ServerUDP(const char* port, int& udp_socket);
+        ServerUDP(const char* port, int& socketUDP);
+        void receiveRequest(int& socketUDP);
+
 
     private:
         struct addrinfo hints, *res;
+        void handleLogin(std::string& additionalInfo);
        
 };
 

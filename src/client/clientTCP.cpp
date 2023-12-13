@@ -80,6 +80,7 @@ void ClientTCP::handleShowAsset(const std::string& additionalInfo) {
         return;
     }
 
+
     sendShowAssetRequest(additionalInfo);
     receiveShowAssetResponse();
 }
@@ -139,6 +140,7 @@ bool ClientTCP::sendOpenRequest(std::string& uid, std::string& password, Auction
 
     createTCPConn();
 
+    // TODO: Loop needed for write?
     ssize_t n = write(fd, cmdStr.c_str(), cmdStr.length()); // Write to the socket
     if (n == -1) {
         // Handle error
@@ -184,22 +186,12 @@ void ClientTCP::sendBidRequest(const std::string& uid, const std::string& passwo
 
 
 void ClientTCP::receiveOpenResponse() {
-    char buffer[12];
     std::string response, response_code, status;
 
-    ssize_t n = read(fd, buffer, 11);
-    closeTCPConn();
-    if (n == -1) {
-        return;
-    } 
-
-    if (buffer[n - 1] != '\n') {
+    if (!readTCPdata(response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
-
-    buffer[static_cast<size_t>(n)] = '\0';  // null-terminate the buffer
-    response = std::string(buffer);
 
     response_code = std::string(response).substr(0, 3);
 
@@ -210,7 +202,7 @@ void ClientTCP::receiveOpenResponse() {
     auto posSpace = response.find(' ', 4);
 
     status = std::string(response).substr(4, posSpace != std::string::npos ? 
-        posSpace - 4 : static_cast<size_t>(n));
+        posSpace - 4 : response.length());
 
 
     if (status == "OK"){
@@ -234,31 +226,26 @@ void ClientTCP::receiveOpenResponse() {
 }
 
 
-void ClientTCP::receiveShowAssetResponse() {
-    char buffer[1024];
+void ClientTCP::receiveShowAssetResponse() { //TODO receiving images not working
     ssize_t n;
-    std::string receivedData;
+    std::string response;
     std::string response_code, status, fname, fsizeStr, fdata;
 
    // receive response
 
-    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {
-        // Null-terminate the received data
-        buffer[n] = '\0';
-
-        // Append the received data to the string
-        receivedData += buffer;
+    if (!readTCPdata(response)) {
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
     }
 
     // parse received data
     
-    std::istringstream iss(receivedData);
+    std::istringstream iss(response);
     iss >> response_code >> status >> fname >> fsizeStr;
     
-    std::cout << "code: " << response_code << std::endl;
-    std::cout << "status: " << status << std::endl;
-    std::cout << "fname: " << fname << std::endl;
-    std::cout << "fsize: " << fsizeStr << std::endl;
+    std::cout << "File name: " << fname << std::endl;
+    std::cout << "File size: " << fsizeStr << std::endl;
+    //TODO also show file directory (?)
 
     // convert fsizeStr to integer
 
@@ -269,34 +256,27 @@ void ClientTCP::receiveShowAssetResponse() {
     
     outfile.open(fname, std::ios::binary);
 
-    outfile.write(receivedData.c_str() + iss.tellg() + 1, static_cast<std::streamsize>(fsize));
+    outfile.write(response.c_str() + iss.tellg() + 1, static_cast<std::streamsize>(fsize));
 
     outfile.close();
-
-    
-    closeTCPConn();
 }
 
 
 void ClientTCP::receiveBidResponse() {
-    char buffer[1024];
     ssize_t n;
-    std::string receivedData;
+    std::string response;
 
     // receive response
 
-    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {
-        // Null-terminate the received data
-        buffer[n] = '\0';
-
-        // Append the received data to the string
-        receivedData += buffer;
-    }    
+    if (!readTCPdata(response)) {
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
     
     // parse received data
-    //TODO validate receivedData
-    std::string response_code = std::string(receivedData).substr(0, 3);
-    std::string status = std::string(receivedData).substr(4, 3);
+    //TODO validate response
+    std::string response_code = std::string(response).substr(0, 3);
+    std::string status = std::string(response).substr(4, 3);
 
     if (response_code != "RBD"){
         std::cout << "WARNING: unexpected protocol message\n";
@@ -316,28 +296,16 @@ void ClientTCP::receiveBidResponse() {
     } else {
         std::cout << "WARNING: unexpected protocol message\n" << std::endl;
     }
-
-    
-    closeTCPConn();
 }
 
 void ClientTCP::receiveCloseResponse(const std::string& uid, const std::string& aid) {
     char buffer[9];
     std::string response, response_code, status;
 
-    ssize_t n = read(fd, buffer, 8);
-    closeTCPConn();
-    if (n == -1) {
-        return;
-    } 
-
-    if (buffer[n - 1] != '\n') {
+    if (!readTCPdata(response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
-
-    buffer[n] = '\0';  // null-terminate the buffer
-    response = std::string(buffer);
 
     response_code = std::string(response).substr(0, 3);
     status = std::string(response).substr(4);
@@ -400,8 +368,32 @@ bool ClientTCP::isFnameValid(std::string& fname) {
 // Auxiliary Functions
 
 
+bool ClientTCP::readTCPdata(std::string& response) {
+    char buffer[1024];
+    ssize_t n;
+
+    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {        
+        // Null-terminate the received data
+        buffer[n] = '\0';
+
+        // Append the received data to the string
+        response += buffer;
+    }
+    
+    closeTCPConn();
+    
+    if (n == -1) return false; // error whilst reading
+
+    //check last character of response
+    if (response.empty() || response.back() != '\n')
+        return false;
+    
+    return true;
+}
+
+
 std::string ClientTCP::readFileBinary(const std::string& fname) {
-    std::ifstream file(fname, std::ios::binary);
+    std::ifstream file("client/" + fname, std::ios::binary);
     if (!file) {
         std::cout << "Cannot open file: " << fname << std::endl;
         return "";
