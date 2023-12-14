@@ -82,6 +82,19 @@ AS: src/server/Server
 user: src/client/User
 	cp src/client/User user
 
+
+# src/server/Server: $(SERVER_OBJECTS) $(COMMON_OBJECTS)
+# 	$(LD) $(LDFLAGS) -o $@ $^
+
+# src/client/User: $(CLIENT_OBJECTS) $(COMMON_OBJECTS)
+# 	$(LD) $(LDFLAGS) -o $@ $^
+
+# AS: src/server/Server
+# 	cp src/server/Server AS
+
+# user: src/client/User
+# 	cp src/client/User user
+
 clean:
 	rm -f $(OBJECTS) $(TARGETS) $(TARGET_EXECS)
 

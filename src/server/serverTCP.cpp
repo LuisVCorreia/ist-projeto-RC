@@ -41,7 +41,7 @@ void ServerTCP::receiveRequest(int& socketTCP){
     }
 
     struct timeval tv;
-    tv.tv_sec = 1; // FIX ME: check this?
+    tv.tv_sec = 5; // TODO: check this?
     tv.tv_usec = 0;
     setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 

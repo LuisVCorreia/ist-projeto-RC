@@ -1,25 +1,66 @@
 #include "utils.hpp"
 
 
-int CreateAUCTIONDir(int AID) {
-    char AID_dirname[15];
-    char BIDS_dirname[20];
-    int ret;
-
-    if (AID < 1 || AID > 999)
+int createAuctionDir(std::string& aid){
+    if (aid.length() != 3)
         return 0;
 
-    sprintf(AID_dirname, "AUCTIONS/%03d", AID);
-    ret = mkdir(AID_dirname, 0700);
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path BIDS_dir = AUCTION_dir / "BIDS";
 
-    if (ret == -1)
+    try {
+        // Create auction directory
+        if (!fs::create_directories(AUCTION_dir)) {
+            std::cerr << "Directory already exists or cannot be created: " << AUCTION_dir << std::endl;
+            return 0;
+        }
+
+        // Create bids directory
+        if (!fs::create_directories(BIDS_dir)) {
+            std::cerr << "Failed to create BIDS directory in: " << BIDS_dir << std::endl;
+            return 0;
+        }
+
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+
+}
+
+
+
+int createUserDir(std::string& uid) {
+    if (uid.length() != 6)
         return 0;
 
-    sprintf(BIDS_dirname, "AUCTIONS/%03d/BIDS", AID);
-    ret = mkdir(BIDS_dirname, 0700);
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path HOSTED_dir = USER_dir / "HOSTED";
+    fs::path BIDDED_dir = USER_dir / "BIDDED";
 
-    if (ret == -1) {
-        rmdir(AID_dirname);
+    try {
+        // Create user directory
+        if (!fs::create_directories(USER_dir)) {
+            std::cerr << "Directory already exists or cannot be created: " << USER_dir << std::endl;
+            return 0;
+        }
+
+        // Create hosted directory
+        if (!fs::create_directories(HOSTED_dir)) {
+            std::cerr << "Failed to create HOSTED directory in: " << HOSTED_dir << std::endl;
+            return 0;
+        }
+
+        // Create bidded directory
+        if (!fs::create_directories(BIDDED_dir)) {
+            std::cerr << "Failed to create BIDDED directory in: " << BIDDED_dir << std::endl;
+            return 0;
+        }
+
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
         return 0;
     }
 
@@ -27,45 +68,97 @@ int CreateAUCTIONDir(int AID) {
 }
 
 
-int CreateLogin(char *UID) {
-    char login_name[35];
-    FILE *fp;
 
-    if (strlen(UID) != 6)
+// check if user directory exists
+int existsUserDir(std::string& uid) {
+    if (uid.length() != 6)
         return 0;
 
-    sprintf(login_name, "USERS/%s/%s_login.txt", UID, UID);
-    fp = fopen(login_name, "w");
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
 
-    if (fp == NULL)
+    try {
+        if (!fs::exists(USER_dir))
+            return 0;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+
+}
+
+
+// int isUserRegistered(std::string& uid) {}
+
+
+int createLogin(std::string& uid) {
+    if (uid.length() != 6)
         return 0;
 
-    fprintf(fp, "Logged in\n");
-    fclose(fp);
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path LOGIN_file = USER_dir / (uid + "_login.txt");
 
+    try {
+        if (!fs::exists(LOGIN_file)) {
+            return 0;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
     return 1;
 }
 
 
-int EraseLogin(char *UID) {
-    char login_name[35];
 
-    if (strlen(UID) != 6)
+int createPassword(std::string& uid, std::string& password) {
+    if (uid.length() != 6 || password.length() != 8)
         return 0;
 
-    sprintf(login_name, "USERS/%s/%s_login.txt", UID, UID);
-    unlink(login_name);
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
 
+    try {
+        if (!fs::exists(PASSWORD_file)) {
+            std::ofstream ofs(PASSWORD_file);
+            ofs << password << std::endl;
+            ofs.close();
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
     return 1;
 }
 
 
-int CheckAssetFile(char *fname)
+
+int eraseLogin(std::string& uid) {
+    if (uid.length() != 6)
+        return 0;
+
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path LOGIN_file = USER_dir / (uid + "_login.txt");
+
+    try {
+        if (fs::exists(LOGIN_file)) {
+            fs::remove(LOGIN_file);
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 1;
+}
+
+
+int checkAssetFile(std::string& fname)
 {
     struct stat filestat;
     int ret_stat;
 
-    ret_stat = stat(fname, &filestat);
+    ret_stat = stat(fname.c_str(), &filestat);
 
     if (ret_stat == -1 || filestat.st_size == 0)
         return (0);
@@ -75,14 +168,14 @@ int CheckAssetFile(char *fname)
 
 
 
-// int GetBidList(int AID, BIDLIST *list)
+// int getBidList(std::string&  aid, BIDLIST *list)
 // {
 //     struct dirent **filelist;
 //     int n_entries, n_bids, len;
 //     char dirname[20];
 //     char pathname[32];
 
-//     sprintf(dirname, "AUCTIONS/%03d/BIDS/", AID);
+//     sprintf(dirname, "AUCTIONS/%03d/BIDS/", aid);
 //     n_entries = scandir(dirname, &filelist, 0, alphasort);
 //     if (n_entries <= 0) // Could test for -1 since n_entries count always with . and ..
 //         return(0);
@@ -94,7 +187,7 @@ int CheckAssetFile(char *fname)
 //         len=strlen(filelist[n_entries]->d_name);
 //         if(len==10) // Discard '.', '..', and invalid filenames by size
 //         {
-//             sprintf(pathname, "AUCTIONS/%03d/BIDS/%s", AID, filelist[n_entries]->d_name);
+//             sprintf(pathname, "AUCTIONS/%03d/BIDS/%s", aid, filelist[n_entries]->d_name);
 //             if (LoadBid(pathname, list))
 //             {
 //                 ++n_bids;

@@ -77,10 +77,10 @@ void Client::sigintHandler(int signum) {
 
 void Client::logoutIfLoggedIn() {
     std::cout << std::endl;
-    if (!uid.empty()) {
-        clientUDP.sendLogoutRequest(uid, password);
-        clientUDP.receiveLogoutResponse(uid, password);
-    }
+    // if (!uid.empty()) {
+    //     clientUDP.sendLogoutRequest(uid, password);
+    //     clientUDP.receiveLogoutResponse(uid, password);
+    // }
 }
 
 

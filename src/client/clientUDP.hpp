@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <sstream>
 
+#include <common/common.hpp>
+
 #define HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT "58047"
 #define DEFAULT_ASIP "127.0.0.1"
@@ -21,8 +23,6 @@ class ClientUDP {
         ClientUDP(const char* port, const char* asip);
         ~ClientUDP();
 
-        void createUDPConn();
-        void closeUDPConn();
         void handleLogin(const std::string& additionalInfo, std::string& uid, std::string& password);
         void handleLogout(const std::string& additionalInfo, std::string& uid, std::string& password);
         void handleUnregister(const std::string& additionalInfo, std::string& uid, std::string& password);
@@ -39,7 +39,6 @@ class ClientUDP {
         struct addrinfo *res;
         const char* asip;
         
-        int loginValid(std::string& uid, std::string& password);
         void sendLoginRequest(std::string& uid, std::string& password);
         void receiveLoginResponse(std::string& uid, std::string& password);
         void receiveAuthResponse(std::string requestType, std::string& uid, std::string& password);

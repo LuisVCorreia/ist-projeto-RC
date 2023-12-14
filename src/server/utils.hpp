@@ -3,10 +3,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <iostream>
+
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 #define MAX_BIDS 50
 
@@ -25,11 +30,15 @@ typedef struct {
 
 } BIDLIST;
 
-int CreateAUCTIONDir(int AID);
-int CreateLogin(char *UID);
-int EraseLogin(char *UID);
-int CheckAssetFile(char *fname);
-//int GetBidList(int AID, BIDLIST *list);
+int createAuctionDir(std::string& aid);
+int createUserDir(std::string& uid);
+int existsUserDir(std::string& uid);
+int createLogin(std::string& uid);
+int createPassword(std::string& uid, std::string& password);
+int eraseLogin(std::string& uid);
+int checkAssetFile(std::string& fname);
+
+//int GetBidList(std::string& aid, BIDLIST *list);
 
 
 #endif

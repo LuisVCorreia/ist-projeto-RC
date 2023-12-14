@@ -18,14 +18,7 @@ ClientUDP::~ClientUDP() {
     freeaddrinfo(res);
 }
 
-void ClientUDP::createUDPConn() {
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd == -1) exit(1); //TODO remove all exits and handle errors
-}
 
-void ClientUDP::closeUDPConn() {
-    close(fd);
-}
 
 void ClientUDP::handleLogin(const std::string& additionalInfo, std::string& uid, std::string& password) {
     if (!uid.empty()) {  //check if already logged in
@@ -134,40 +127,40 @@ void ClientUDP::handleShowRecord(const std::string& additionalInfo, std::string&
 
 
 void ClientUDP::sendLoginRequest(std::string& uid, std::string& password) {
-    createUDPConn();
+    createUDPConn(fd);
     if (sendto(fd, ("LIN " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
         0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 void ClientUDP::sendLogoutRequest(std::string& uid, std::string& password) {
-    createUDPConn();
+    createUDPConn(fd);
     if (sendto(fd, ("LOU " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
         0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 void ClientUDP::sendUnregisterRequest(std::string& uid, std::string& password) {
-    createUDPConn();
+    createUDPConn(fd);
     if (sendto(fd, ("UNR " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
         0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 void ClientUDP::sendMyAuctionsRequest(std::string& uid) {
-    createUDPConn();
+    createUDPConn(fd);
     if (sendto(fd, ("LMA " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 void ClientUDP::sendMyBidsRequest(std::string& uid) {
-    createUDPConn();
+    createUDPConn(fd);
     if (sendto(fd, ("LMB " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 void ClientUDP::sendAllAuctionsRequest() {
-    createUDPConn();
+    createUDPConn(fd);
     if (sendto(fd, "LST\n", 4, 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
 void ClientUDP::sendShowRecordRequest(const std::string& aid){
-    createUDPConn();
+    createUDPConn(fd);
   if (sendto(fd, ("SRC " + aid + "\n").c_str(), 5 + aid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
 }
 
@@ -212,7 +205,7 @@ void ClientUDP::receiveShowRecordResponse(){
     ssize_t n = recvfrom(fd, buffer, 2161, 0, (struct sockaddr*)&addr, &addrlen);
     if (n == -1) exit(1); // TODO remove all exits and handle errors
 
-    closeUDPConn();
+    closeUDPConn(fd);
 
     buffer[n] = '\0';
 
@@ -251,7 +244,7 @@ void ClientUDP::receiveAuthResponse(std::string responseType, std::string& uid, 
     ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
     if (n == -1) exit(1);
 
-    closeUDPConn();
+    closeUDPConn(fd);
 
     buffer[n] = '\0';
 
@@ -279,7 +272,7 @@ void ClientUDP::receiveListResponse(std::string responseType){
     ssize_t n = recvfrom(fd, buffer, 6002, 0, (struct sockaddr*)&addr, &addrlen);
     if (n == -1) exit(1);   // TODO remove all exits and handle errors
 
-    closeUDPConn();
+    closeUDPConn(fd);
 
     buffer[n] = '\0';
 
@@ -415,14 +408,6 @@ void ClientUDP::parseRecordInfo(std::string info){
 
 // Validations
 
-
-int ClientUDP::loginValid(std::string& uid, std::string& password) {
-    if (uid.length() == 6 && all_of(uid.begin(), uid.end(), ::isdigit)
-        && password.length() == 8 && all_of(password.begin(), password.end(), ::isalnum)) {
-        return 1;
-    } else 
-        return 0;
-}
 
 void ClientUDP::validateLoginResponse(std::string response, std::string status, std::string& uid, std::string& password){
     if (response != "RLI"){

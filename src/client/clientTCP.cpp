@@ -23,17 +23,7 @@ ClientTCP::~ClientTCP() {
 }
 
 
-void ClientTCP::createTCPConn() {
-    fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd == -1) exit(1); // TODO remove all exits and handle errors
-    
-    int errcode = connect(fd, res->ai_addr, res->ai_addrlen);
-    if (errcode == -1) exit(1); //TODO remove all exits and handle errors
-}
 
-void ClientTCP::closeTCPConn() {
-    close(fd);
-}
 
 
 // Handle Commands
@@ -138,13 +128,13 @@ bool ClientTCP::sendOpenRequest(std::string& uid, std::string& password, Auction
 
     std::string cmdStr = cmd.str(); 
 
-    createTCPConn();
+    createTCPConn(fd, res);
 
     // TODO: Loop needed for write?
     ssize_t n = write(fd, cmdStr.c_str(), cmdStr.length()); // Write to the socket
     if (n == -1) {
         // Handle error
-        closeTCPConn();
+        closeTCPConn(fd);
         return false;
     }
     return true;
@@ -152,7 +142,7 @@ bool ClientTCP::sendOpenRequest(std::string& uid, std::string& password, Auction
 
 
 bool ClientTCP::sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid) {
-    createTCPConn();
+    createTCPConn(fd, res);
 
     // send request
     
@@ -163,7 +153,7 @@ bool ClientTCP::sendCloseRequest(const std::string& uid, const std::string& pass
 
 
 void ClientTCP::sendShowAssetRequest(const std::string& aid) {
-    createTCPConn();
+    createTCPConn(fd, res);
 
     // send request
 
@@ -173,7 +163,7 @@ void ClientTCP::sendShowAssetRequest(const std::string& aid) {
 
 
 void ClientTCP::sendBidRequest(const std::string& uid, const std::string& password, const std::string aid , const std::string value) {
-    createTCPConn();
+    createTCPConn(fd, res);
 
     // send request
     ssize_t n = write(fd, ("BID " + uid + " " + password + " " + aid + " " + value + "\n").c_str(), 25+value.size()); 
@@ -380,7 +370,7 @@ bool ClientTCP::readTCPdata(std::string& response) {
         response += buffer;
     }
     
-    closeTCPConn();
+    closeTCPConn(fd);
     
     if (n == -1) return false; // error whilst reading
 

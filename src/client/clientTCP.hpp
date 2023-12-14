@@ -16,6 +16,8 @@
 #include <sstream>
 #include <signal.h>
 
+#include <common/common.hpp>
+
 #define HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT "58047"
 #define DEFAULT_ASIP "127.0.0.1"
@@ -41,9 +43,6 @@ class ClientTCP {
         int fd;
         struct addrinfo *res;
         const char* asip;
-
-        void createTCPConn();
-        void closeTCPConn();
 
         bool sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo);
         bool sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid);

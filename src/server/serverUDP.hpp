@@ -12,7 +12,9 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+
 #include <utils.hpp>
+#include <common/common.hpp>
 
 class ServerUDP {
     public:
@@ -21,8 +23,12 @@ class ServerUDP {
 
 
     private:
-        struct addrinfo hints, *res;
+        struct addrinfo *res;
+        int socketUDP;
         void handleLogin(std::string& additionalInfo);
+        void handleLogout(std::string& additionalInfo);
+
+        void sendResponse(const char* response);
        
 };
 
