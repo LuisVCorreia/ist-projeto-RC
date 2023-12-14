@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <iostream>
+#include <fstream>
 
 #include <filesystem>
 
@@ -33,6 +34,8 @@ typedef struct {
 int createAuctionDir(std::string& aid);
 int createUserDir(std::string& uid);
 int existsUserDir(std::string& uid);
+int isUserRegistered(std::string& uid);
+int isValidPassword(std::string& uid, std::string& password);
 int createLogin(std::string& uid);
 int createPassword(std::string& uid, std::string& password);
 int eraseLogin(std::string& uid);

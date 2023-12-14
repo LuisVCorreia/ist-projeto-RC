@@ -27,10 +27,10 @@ void AS::run() {
                 break;
             default:
                 if (FD_ISSET(socketUDP, &testfds)) {
-                    serverUDP.receiveRequest(socketUDP);
+                    serverUDP.receiveRequest();
                 }
                 if (FD_ISSET(socketTCP, &testfds)) {
-                    serverTCP.receiveRequest(socketTCP);
+                    serverTCP.receiveRequest();
                 }
                 break;
         }

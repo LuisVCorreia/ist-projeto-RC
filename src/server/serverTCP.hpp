@@ -18,9 +18,10 @@
 class ServerTCP {
     public:
         ServerTCP(const char* port, int& socketTCP);
-        void receiveRequest(int& socketTCP);
+        void receiveRequest();
 
     private:
+        int socketTCP;
         struct addrinfo hints, *res;
        
 };

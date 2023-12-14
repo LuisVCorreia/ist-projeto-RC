@@ -89,9 +89,49 @@ int existsUserDir(std::string& uid) {
 }
 
 
-// int isUserRegistered(std::string& uid) {}
+int isUserRegistered(std::string& uid) {
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
+
+    try {
+        if (!fs::exists(PASSWORD_file))
+            return 0;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+}
+
+// check that the password is correct
+int isValidPassword(std::string& uid, std::string& password){
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
+
+    try {
+        if (!fs::exists(PASSWORD_file))
+            return 0;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    std::ifstream ifs(PASSWORD_file);
+    std::string correctPassword;
+    ifs >> correctPassword;
+    ifs.close();
+
+    if (password != correctPassword){
+        return 0;
+    }
+
+    return 1;
+}
 
 
+
+// create new login file
 int createLogin(std::string& uid) {
     if (uid.length() != 6)
         return 0;
@@ -101,13 +141,16 @@ int createLogin(std::string& uid) {
 
     try {
         if (!fs::exists(LOGIN_file)) {
-            return 0;
+            std::ofstream ofs(LOGIN_file);
+            return 1;
         }
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
         return 0;
     }
-    return 1;
+
+    return 0;
+
 }
 
 
@@ -122,7 +165,7 @@ int createPassword(std::string& uid, std::string& password) {
     try {
         if (!fs::exists(PASSWORD_file)) {
             std::ofstream ofs(PASSWORD_file);
-            ofs << password << std::endl;
+            ofs << password;
             ofs.close();
         }
     } catch (const fs::filesystem_error& e) {

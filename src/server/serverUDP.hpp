@@ -19,16 +19,17 @@
 class ServerUDP {
     public:
         ServerUDP(const char* port, int& socketUDP);
-        void receiveRequest(int& socketUDP);
+        void receiveRequest();
 
 
     private:
-        struct addrinfo *res;
+        socklen_t client_addrlen;
+        struct sockaddr_in client_addr;
         int socketUDP;
         void handleLogin(std::string& additionalInfo);
         void handleLogout(std::string& additionalInfo);
 
-        void sendResponse(const char* response);
+        int sendResponse(const char* response);
        
 };
 

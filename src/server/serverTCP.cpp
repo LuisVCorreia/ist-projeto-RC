@@ -15,6 +15,8 @@ ServerTCP::ServerTCP(const char* port, int& socketTCP) {
     if (socketTCP == -1)
         exit(1); // TODO: Fix Error handling
 
+    this->socketTCP = socketTCP;
+
     if (bind(socketTCP, res->ai_addr, res->ai_addrlen) == -1) {
         perror("Bind error TCP server");
         exit(1); // TODO: Fix Error handling
@@ -29,7 +31,7 @@ ServerTCP::ServerTCP(const char* port, int& socketTCP) {
 }
 
 
-void ServerTCP::receiveRequest(int& socketTCP){
+void ServerTCP::receiveRequest(){
     struct sockaddr_in client_addr;
     socklen_t addrlen = sizeof(client_addr);
 

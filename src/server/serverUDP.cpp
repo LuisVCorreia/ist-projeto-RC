@@ -2,6 +2,7 @@
 
 ServerUDP::ServerUDP(const char* port, int& socketUDP) {
     struct addrinfo hints;
+    struct addrinfo *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
@@ -14,7 +15,6 @@ ServerUDP::ServerUDP(const char* port, int& socketUDP) {
     if (socketUDP == -1)
         exit(1); // TODO: Fix Error handling
     this->socketUDP = socketUDP;
-    this->res = res;
 
     if (bind(socketUDP, res->ai_addr, res->ai_addrlen) == -1) {
         perror("Bind error UDP server");
@@ -24,14 +24,13 @@ ServerUDP::ServerUDP(const char* port, int& socketUDP) {
 
 }
 
-void ServerUDP::receiveRequest(int& socketUDP){
+void ServerUDP::receiveRequest(){
     char buffer[1024];
-    struct sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
     std::string request, command, additionalInfo;
+    client_addrlen = sizeof(client_addr);
 
     // Receive data from the UDP socket
-    ssize_t received_bytes = recvfrom(socketUDP, buffer, 1023, 0, (struct sockaddr*)&addr, &addrlen);
+    ssize_t received_bytes = recvfrom(socketUDP, buffer, 1023, 0, (struct sockaddr*)&client_addr, &client_addrlen);
     if (received_bytes < 0) {
         perror("Error receiving UDP data");
         return;
@@ -39,10 +38,8 @@ void ServerUDP::receiveRequest(int& socketUDP){
 
     // Remove final character
 
-    if (buffer[received_bytes-1] != '\n') {
-        if (sendto(socketUDP, "ERR\n", 4, 0, res->ai_addr, res->ai_addrlen) < 0)
-            std::cout << "WARNING: error sending UDP message\n";
-        closeUDPConn(socketUDP);
+    if (buffer[received_bytes-1] != '\n'){
+        sendResponse("ERR\n");
         return;
     }
 
@@ -65,10 +62,13 @@ void ServerUDP::receiveRequest(int& socketUDP){
 
     if (command == "LIN") 
         handleLogin(additionalInfo);
+    else if (command == "LOU")
+        handleLogout(additionalInfo);
     else
         std::cout << "unknown command\n"; //TODO: fix this
 
 }
+
 
 void ServerUDP::handleLogin(std::string& additionalInfo){
     std::string uid, password;
@@ -79,14 +79,10 @@ void ServerUDP::handleLogin(std::string& additionalInfo){
     password = additionalInfo.substr(splitIndex + 1);
 
     if (!loginValid(uid, password)) { // validate uid and password
-        if (sendto(socketUDP, "RLI ERR\n", 8, 0, res->ai_addr, res->ai_addrlen) < 0)
-            std::cout << "WARNING: error sending UDP message\n";
-        closeUDPConn(socketUDP); // TODO: check if error?
+        sendResponse("RLI ERR\n");
         return;
     }
 
-    // create directory (uidx)
-    
     if (!existsUserDir(uid)){
         if (!createUserDir(uid)) // create user directory
             return;
@@ -94,21 +90,21 @@ void ServerUDP::handleLogin(std::string& additionalInfo){
 
     if (isUserRegistered(uid)) {
         if (!isValidPassword(uid, password)) {
-            sendResponse("RLI NOK\n") // password is incorrect
+            sendResponse("RLI NOK\n"); // password is incorrect
             return;
         }
 
         if (!createLogin(uid)) return;
         
         // successfully logged in
-        if (!sendResponse("RLI OK\n")) return;
+        sendResponse("RLI OK\n"); // TODO: check for error
     }
     else {
         if (!createPassword(uid, password)) return;
         if (!createLogin(uid)) return;
 
         // successfully registered user
-        if (!sendResponse("RLI REG\n")) return; //TODO what if the user existed but had been unregistered?
+        sendResponse("RLI REG\n"); //TODO what if the user existed but had been unregistered?
     }
 }
 
@@ -122,9 +118,7 @@ void ServerUDP::handleLogout(std::string& additionalInfo){
     password = additionalInfo.substr(splitIndex + 1);
 
     if (!loginValid(uid, password)) { // validate uid and password
-        if (sendto(socketUDP, "RLI ERR\n", 8, 0, res->ai_addr, res->ai_addrlen) < 0)
-            std::cout << "WARNING: error sending UDP message\n";
-        closeUDPConn(socketUDP); // TODO: check if error?
+        sendResponse("RLO ERR\n");
         return;
     }
 
@@ -135,15 +129,13 @@ void ServerUDP::handleLogout(std::string& additionalInfo){
 }
 
 
-int sendResponse(const char* response) {
-    if (sendto(socketUDP, "RLI NOK\n", 8, 0, res->ai_addr, res->ai_addrlen) < 0) {
+int ServerUDP::sendResponse(const char* response) {
+    if (sendto(socketUDP, response, strlen(response), 0, (const struct sockaddr*)&client_addr, client_addrlen) < 0) {
         std::cout << "WARNING: error sending UDP message\n";
         return 0;
     }
 
-    if (!closeUDPConn(socketUDP)) {
-        std::cout << "WARNING: error closing UDP socket\n";
-        return 0;
-    }
+    //closeUDPConn(socketUDP); we dont want to close the socket here
+
     return 1;
 }
