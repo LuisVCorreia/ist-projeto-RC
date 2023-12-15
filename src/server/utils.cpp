@@ -59,6 +59,46 @@ int existsUserDir(std::string& uid) {
 
 }
 
+int createNewHost(std::string& uid, std::string& aid) {
+    if (uid.length() != 6 || aid.length() != 3)
+        return 0;
+
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path HOSTED_dir = USER_dir / "HOSTED";
+    fs::path AID_file = HOSTED_dir / (aid + ".txt");
+
+    try {
+        if (!fs::exists(HOSTED_dir))
+            return 0;
+        std::ofstream ofs(AID_file);
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+}
+
+int checkAuctionOwner(std::string& uid, std::string& aid){
+    if (uid.length() != 6 || aid.length() != 3)
+        return 0;
+
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path HOSTED_dir = USER_dir / "HOSTED";
+    fs::path AID_file = HOSTED_dir / (aid + ".txt");
+
+    try {
+        if (!fs::exists(AID_file))
+            return 0;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+
+}
+
 
 // Password
 
@@ -359,8 +399,6 @@ int createEndFile(std::string& aid, std::string& end_datetime, std::string& end_
     if (aid.length() != 3)
         return 0;
 
-    std::cout << "creating end file\n";
-
     fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
     fs::path END_file = AUCTION_dir / ("END_" + aid + ".txt");
 
@@ -408,7 +446,7 @@ int isAuctionStillActive(std::string& aid){
 
     if (now - start_time_seconds > time_active_seconds) {
         // auction is no longer active
-        
+
         // end_datetime is the start time plus the time active
         time_t end_time_seconds = start_time_seconds + time_active_seconds;
         tm* end_timeinfo = localtime(&end_time_seconds);

@@ -126,18 +126,18 @@ void ServerTCP::handleOpen(std::string& additionalInfo) {
 
     // create auction
 
-    if (!createAuctionDir(aid)) {
-        sendResponse("NOK\n");
+    if (!createAuctionDir(aid) || !createNewHost(openRequestInfo.uid, aid)) {
+        sendResponse("ROA NOK\n"); // TODO: should this be ERR or NOK?
         return;
     }
 
     if (!createStartFile(aid, openRequestInfo.uid, openRequestInfo.name, openRequestInfo.fname, openRequestInfo.start_value, openRequestInfo.timeactive)) {
-        sendResponse("NOK\n");
+        sendResponse("ROA NOK\n");
         return;
     }
 
     if (!createAssetFile(aid, openRequestInfo.fname, openRequestInfo.fdata)) {
-        sendResponse("NOK\n");
+        sendResponse("ROA NOK\n");
         return;
     }
 
@@ -204,10 +204,10 @@ void ServerTCP::handleClose(std::string& additionalInfo){
 
 
     // check if auction is owned by user
-    // if (!checkAuctionOwner(aid, uid)) {  // TODO: implement this using HOSTED directory
-    //     sendResponse("RCL EOW\n");
-    //     return;
-    // }
+    if (!checkAuctionOwner(aid, uid)) {  // TODO: implement this using HOSTED directory
+        sendResponse("RCL EOW\n");
+        return;
+    }
 
     // check if auction is still active
     if (!isAuctionStillActive(aid)) {

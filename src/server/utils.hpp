@@ -33,6 +33,8 @@ typedef struct {
 
 int createUserDir(std::string& uid);
 int existsUserDir(std::string& uid);
+int createNewHost(std::string& uid, std::string& aid);
+int checkAuctionOwner(std::string& uid, std::string& aid);
 
 int createPassword(std::string& uid, std::string& password);
 int erasePassword(std::string& uid);
