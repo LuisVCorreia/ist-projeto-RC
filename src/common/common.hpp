@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <fstream>
+#include <sstream>
 
 
 void createTCPConn(int& fd, struct addrinfo *res);
@@ -24,6 +26,7 @@ int isStartValueValid(std::string& value);
 int isTimeActiveValid(std::string& timeactive);
 int isFsizeValid(std::string& fsize);
 
-std::string readBinaryFile(std::string& fname, std::string& fsize, std::string& fcontent);
+std::string readFileBinary(const std::string& fname);
+int writeFileBinary(const std::string& fname, int fsize, const char* fdata);
 
 #endif

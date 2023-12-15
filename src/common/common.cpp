@@ -125,13 +125,15 @@ std::string readFileBinary(const std::string& fname) {
 }
 
 
-std::string writeFileBinary(const std::string& fname, const std::string& fdata) {
-    // write file data
+int writeFileBinary(const std::string& fname, int fsize, const char* fdata) {
+    
     std::ofstream outfile;
     
     outfile.open(fname, std::ios::binary);
 
-    outfile.write(response.c_str() + iss.tellg() + 1, static_cast<std::streamsize>(fsize));
+    outfile.write(fdata, static_cast<std::streamsize>(fsize));
 
     outfile.close();
+
+    return 1;
 }

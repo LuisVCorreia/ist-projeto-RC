@@ -219,16 +219,18 @@ void ClientTCP::receiveShowAssetResponse() { //TODO receiving images not working
     std::string response_code, status, fname, fsizeStr, fdata;
 
    // receive response
+    std::cout << "Marker A\n" << std::endl;
 
     if (!readTCPdata(response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
 
+    std::cout << "Marker B\n" << std::endl;
     // parse received data
     
     std::istringstream iss(response);
-    iss >> response_code >> status >> fname >> fsizeStr;
+    iss >> response_code >> status >> fname >> fsizeStr >> fdata;
     
     std::cout << "File name: " << fname << std::endl;
     std::cout << "File size: " << fsizeStr << std::endl;
@@ -239,13 +241,18 @@ void ClientTCP::receiveShowAssetResponse() { //TODO receiving images not working
     size_t fsize = std::stoul(fsizeStr);
 
     // write file data
-    std::ofstream outfile;
-    
-    outfile.open(fname, std::ios::binary);
 
-    outfile.write(response.c_str() + iss.tellg() + 1, static_cast<std::streamsize>(fsize));
+    std::cout << "Marker C\n" << std::endl;
 
-    outfile.close();
+    char fdata_char[fsize + 1];
+    std::copy(fdata.begin(), fdata.end(), fdata_char);
+    fdata_char[fsize] = '\0';
+
+    std::cout << "Marker D\n" << std::endl;
+
+    writeFileBinary(fname, fsize, fdata_char);
+
+    std::cout << "Marker E\n" << std::endl;
 }
 
 
@@ -359,7 +366,7 @@ bool ClientTCP::readTCPdata(std::string& response) {
         buffer[n] = '\0';
 
         // Append the received data to the string
-        response += buffer;
+        response.append(buffer, n);
     }
     
     closeTCPConn(fd);
