@@ -372,21 +372,3 @@ bool ClientTCP::readTCPdata(std::string& response) {
     
     return true;
 }
-
-
-std::string ClientTCP::readFileBinary(const std::string& fname) {
-    std::ifstream file("src/client/" + fname, std::ios::binary);
-    if (!file) {
-        std::cout << "Cannot open file: " << fname << std::endl;
-        return "";
-    }
-
-    std::ostringstream oss;
-    oss << file.rdbuf(); // read the file
-
-    if (!oss) {
-        std::cout << "Failed to read file: " << fname << std::endl;
-        return "";
-    }
-    return oss.str();
-}

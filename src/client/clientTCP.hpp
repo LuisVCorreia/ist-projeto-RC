@@ -57,7 +57,6 @@ class ClientTCP {
         int parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
 
         bool readTCPdata(std::string& response);
-        std::string readFileBinary(const std::string& fname);
         
 };
 

@@ -127,7 +127,7 @@ void ServerTCP::handleOpen(std::string& additionalInfo) {
     // create auction
 
     if (!createAuctionDir(aid) || !createNewHost(openRequestInfo.uid, aid)) {
-        sendResponse("ROA NOK\n"); // TODO: should this be ERR or NOK?
+        sendResponse("ROA NOK\n"); 
         return;
     }
 
@@ -175,14 +175,6 @@ void ServerTCP::handleClose(std::string& additionalInfo){
         return;
     }
 
-    // In reply to a CLS request the AS replies informing whether it was able to close auction AID. 
-    // The reply status is OK, if auction AID was ongoing, it was started by user UID, and could 
-    // be successfully closed by the AS. The reply status is NOK, if the user UID does not exist 
-    // or if the password is incorrect. If the user was not logged in the reply status is NLG. 
-    // The status is EAU, if the auction AID does not exist. status is EOW, if the auction is not 
-    // owned by user UID, and status is END, if auction AID owned by user UID has already finished.
-
-
     // check if user is logged in and if password is correct
     if (!existsUserDir(uid) || !isValidPassword(uid, password)) {
         sendResponse("RCL NOK\n");
@@ -202,9 +194,8 @@ void ServerTCP::handleClose(std::string& additionalInfo){
         return;
     }
 
-
     // check if auction is owned by user
-    if (!checkAuctionOwner(aid, uid)) {  // TODO: implement this using HOSTED directory
+    if (!checkAuctionOwner(uid, aid)) { 
         sendResponse("RCL EOW\n");
         return;
     }

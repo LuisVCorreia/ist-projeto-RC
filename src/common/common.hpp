@@ -24,5 +24,6 @@ int isStartValueValid(std::string& value);
 int isTimeActiveValid(std::string& timeactive);
 int isFsizeValid(std::string& fsize);
 
+std::string readBinaryFile(std::string& fname, std::string& fsize, std::string& fcontent);
 
 #endif

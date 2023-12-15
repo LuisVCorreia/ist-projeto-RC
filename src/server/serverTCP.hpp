@@ -27,7 +27,7 @@ class ServerTCP {
         struct addrinfo hints, *res;
         int auctionCounter;
 
-        struct OpenRequestInfo { //TODO wasnt working in hpp, why
+        struct OpenRequestInfo {
             std::string uid;
             std::string password;
             std::string name;

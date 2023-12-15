@@ -102,3 +102,36 @@ int isFsizeValid(std::string& fsize) {
     }
     return 1;
 }
+
+
+// Binary Files
+
+
+std::string readFileBinary(const std::string& fname) {
+    std::ifstream file("src/client/" + fname, std::ios::binary);
+    if (!file) {
+        std::cout << "Cannot open file: " << fname << std::endl;
+        return "";
+    }
+
+    std::ostringstream oss;
+    oss << file.rdbuf(); // read the file
+
+    if (!oss) {
+        std::cout << "Failed to read file: " << fname << std::endl;
+        return "";
+    }
+    return oss.str();
+}
+
+
+std::string writeFileBinary(const std::string& fname, const std::string& fdata) {
+    // write file data
+    std::ofstream outfile;
+    
+    outfile.open(fname, std::ios::binary);
+
+    outfile.write(response.c_str() + iss.tellg() + 1, static_cast<std::streamsize>(fsize));
+
+    outfile.close();
+}

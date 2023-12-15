@@ -450,7 +450,7 @@ int isAuctionStillActive(std::string& aid){
         // end_datetime is the start time plus the time active
         time_t end_time_seconds = start_time_seconds + time_active_seconds;
         tm* end_timeinfo = localtime(&end_time_seconds);
-        
+        // TODO: make this part a function since it is repeated in createStartFile
         char end_buffer[80];
         strftime(end_buffer, 80, "%Y-%m-%d %H:%M:%S", end_timeinfo);
 
