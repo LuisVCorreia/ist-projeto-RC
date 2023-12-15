@@ -25,8 +25,11 @@ class AS {
     public:
         AS(const char* port);
         void run();
+        void handleSigint();
+
         int socketUDP;
         int socketTCP;
+        
 
     private:
         ServerUDP serverUDP;

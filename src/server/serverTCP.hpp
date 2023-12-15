@@ -20,7 +20,7 @@
 class ServerTCP {
     public:
         ServerTCP(const char* port, int& socketTCP);
-        void receiveRequest();
+        void receiveRequest(int& as_socket);
 
     private:
         int socketTCP;
@@ -37,13 +37,14 @@ class ServerTCP {
             std::string fsize;
             std::string fdata; 
         };
-
-        void handleOpen(std::string& additionalInfo, int new_sock);
+        
+        void handleOpen(std::string& additionalInfo);
+        void handleClose(std::string& additionalInfo);
 
         int parseOpenRequestInfo(std::string& additionalInfo, OpenRequestInfo& openRequestInfo);
         int validateOpenRequestInfo(OpenRequestInfo& openRequestInfo);
 
-        int sendResponse(const char* response, int new_sock);
+        int sendResponse(const char* response);
 };
 
 #endif

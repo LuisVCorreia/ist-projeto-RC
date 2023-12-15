@@ -54,7 +54,6 @@ class ClientTCP {
         void receiveShowAssetResponse();
         void receiveBidResponse();
 
-        bool isAidValid(std::string& aid);
         int parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
 
         bool readTCPdata(std::string& response);

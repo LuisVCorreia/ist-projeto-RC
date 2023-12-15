@@ -30,7 +30,7 @@ void AS::run() {
                     serverUDP.receiveRequest();
                 }
                 if (FD_ISSET(socketTCP, &testfds)) {
-                    serverTCP.receiveRequest();
+                    serverTCP.receiveRequest(socketTCP);
                 }
                 break;
         }
@@ -39,6 +39,11 @@ void AS::run() {
 
     close(socketUDP);
     close(socketTCP);
+}
+
+
+void AS::handleSigint() {
+    logoutAllUsers();
 }
 
 

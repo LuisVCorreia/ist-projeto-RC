@@ -1,13 +1,17 @@
 #include "AS.hpp"
 #include <signal.h>
 
+AS* globalASInstance = nullptr;
+
+void sigintHandler(int signum) {
+    std::cout << std::endl;
+    if (globalASInstance != nullptr) {
+        globalASInstance->handleSigint();
+    }
+    exit(signum);
+}
+
 int main(int argc, char *argv[]) {
-    struct sigaction act;
-    memset(&act,0,sizeof act);
-    act.sa_handler=SIG_IGN;
-    if(sigaction(SIGPIPE,&act,NULL)==-1)/*error*/std::cout << "Lost connection to user\n"; //TODO should we handle this?
-
-
     bool verbose = false;
     const char* port;
     if (argc == 1) {
@@ -30,11 +34,20 @@ int main(int argc, char *argv[]) {
         std::cerr << "Usage: " << argv[0] << " [-p ASport] [-v]" << std::endl;
         return 1;
     }
-
-    std::cout << "port: " << port << std::endl;
-    std::cout << "verbose: " << verbose << std::endl;
+    struct sigaction act;
+    memset(&act,0,sizeof act);
+    act.sa_handler=SIG_IGN;
 
     AS as(port);
+    globalASInstance = &as;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = sigintHandler;
+    if (sigaction(SIGINT, &act, NULL) == -1) {
+        perror("sigaction");
+        return 1;
+    }
+
     as.run();
 
     return 0;

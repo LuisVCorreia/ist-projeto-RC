@@ -29,18 +29,18 @@ ServerTCP::ServerTCP(const char* port, int& socketTCP) {
     freeaddrinfo(res);
 
     // counter for AID selection
-    auctionCounter = 0;
+    auctionCounter = getNumAuctions();
 }
 
 
-void ServerTCP::receiveRequest(){
+void ServerTCP::receiveRequest(int& as_socket){
     struct sockaddr_in client_addr;
     socklen_t addrlen = sizeof(client_addr);
     std::string request, command, additionalInfo;
 
     // Accept the incoming TCP connection
-    int new_sock = accept(socketTCP, (struct sockaddr *)&client_addr, &addrlen);
-    if (new_sock < 0) {
+    socketTCP = accept(as_socket, (struct sockaddr *)&client_addr, &addrlen);
+    if (socketTCP < 0) {
         perror("Accept error");
         return;
     }
@@ -48,12 +48,12 @@ void ServerTCP::receiveRequest(){
     struct timeval tv;
     tv.tv_sec = 5; // TODO: check this?
     tv.tv_usec = 0;
-    setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+    setsockopt(socketTCP, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
     int n;
     char buffer[1024];
     
-    while ((n = read(new_sock, buffer, sizeof(buffer) - 1)) > 0 ) {
+    while ((n = read(socketTCP, buffer, sizeof(buffer) - 1)) > 0 ) {
         // Null-terminate the received data
         buffer[n] = '\0';
 
@@ -65,11 +65,13 @@ void ServerTCP::receiveRequest(){
 
     // send ERR if error during read operation
     if (n==-1){
-        sendResponse("ERR\n", new_sock);
-        close(new_sock);
+        sendResponse("ERR\n");
+        closeTCPConn(socketTCP);
         return;
     }
 
+    // remove trailing newline character
+    request.pop_back();
 
     // Handle request
 
@@ -83,47 +85,38 @@ void ServerTCP::receiveRequest(){
 
 
     if (command == "OPA") 
-        handleOpen(additionalInfo, new_sock);
+        handleOpen(additionalInfo);
+    else if (command == "CLS")
+        handleClose(additionalInfo);
     else
         std::cout << "unknown command\n"; //TODO: fix this
 
-    close(new_sock);
+    closeTCPConn(socketTCP);
 }
 
 
 // Request Handlers
 
-struct OpenRequestInfo { //TODO wasnt working in hpp, why
-            std::string uid;
-            std::string password;
-            std::string name;
-            std::string start_value;
-            std::string timeactive;
-            std::string fname;
-            std::string fsize;
-            std::string fdata; 
-        };
 
-void ServerTCP::handleOpen(std::string& additionalInfo, int new_sock) {
+
+void ServerTCP::handleOpen(std::string& additionalInfo) {
     OpenRequestInfo openRequestInfo;
 
     // parse and validate info
     if (!parseOpenRequestInfo(additionalInfo, openRequestInfo)) {
-        sendResponse("ERR\n", new_sock);
+        sendResponse("ERR\n");
         return;
     }
-
 
     if (!isUserLogged(openRequestInfo.uid)) {
-        sendResponse("ROA NLG\n", new_sock); // user is not logged in
+        sendResponse("ROA NLG\n"); // user is not logged in
         return;
     }
-
 
     // get AID for new auction
 
     if (auctionCounter == 999) { // max number of auctions reached
-        sendResponse("ROA NOK\n", new_sock);
+        sendResponse("ROA NOK\n");
         return;
     }
 
@@ -134,17 +127,17 @@ void ServerTCP::handleOpen(std::string& additionalInfo, int new_sock) {
     // create auction
 
     if (!createAuctionDir(aid)) {
-        sendResponse("NOK\n", new_sock);
+        sendResponse("NOK\n");
         return;
     }
 
     if (!createStartFile(aid, openRequestInfo.uid, openRequestInfo.name, openRequestInfo.fname, openRequestInfo.start_value, openRequestInfo.timeactive)) {
-        sendResponse("NOK\n", new_sock);
+        sendResponse("NOK\n");
         return;
     }
 
     if (!createAssetFile(aid, openRequestInfo.fname, openRequestInfo.fdata)) {
-        sendResponse("NOK\n", new_sock);
+        sendResponse("NOK\n");
         return;
     }
 
@@ -154,17 +147,89 @@ void ServerTCP::handleOpen(std::string& additionalInfo, int new_sock) {
     strcat(response, aid.c_str());
     strcat(response, "\n");
     
-    sendResponse(response, new_sock);
+    sendResponse(response);
 
     return;
+}
+
+
+void ServerTCP::handleClose(std::string& additionalInfo){
+    //additionalInfo in the form UID password AID
+
+    std::string uid, password, aid;
+
+    size_t splitIndex = additionalInfo.find(' ');
+
+    uid = additionalInfo.substr(0, splitIndex);
+    additionalInfo = additionalInfo.substr(splitIndex + 1);
+
+    splitIndex = additionalInfo.find(' ');
+
+    password = additionalInfo.substr(0, splitIndex);
+    additionalInfo = additionalInfo.substr(splitIndex + 1);
+
+    aid = additionalInfo;
+
+    if (!loginValid(uid, password) || !isAidValid(aid)) {
+        sendResponse("ERR\n");
+        return;
+    }
+
+    // In reply to a CLS request the AS replies informing whether it was able to close auction AID. 
+    // The reply status is OK, if auction AID was ongoing, it was started by user UID, and could 
+    // be successfully closed by the AS. The reply status is NOK, if the user UID does not exist 
+    // or if the password is incorrect. If the user was not logged in the reply status is NLG. 
+    // The status is EAU, if the auction AID does not exist. status is EOW, if the auction is not 
+    // owned by user UID, and status is END, if auction AID owned by user UID has already finished.
+
+
+    // check if user is logged in and if password is correct
+    if (!existsUserDir(uid) || !isValidPassword(uid, password)) {
+        sendResponse("RCL NOK\n");
+        return;
+    }
+
+    // check if user is logged in
+    if (!isUserLogged(uid)) {
+        sendResponse("RCL NLG\n");
+        return;
+    }
+
+
+    // check if auction exists
+    if (!existsAuctionDir(aid)) {
+        sendResponse("RCL EAU\n");
+        return;
+    }
+
+
+    // check if auction is owned by user
+    // if (!checkAuctionOwner(aid, uid)) {  // TODO: implement this using HOSTED directory
+    //     sendResponse("RCL EOW\n");
+    //     return;
+    // }
+
+    // check if auction is still active
+    if (!isAuctionStillActive(aid)) {
+        sendResponse("RCL END\n");
+        return;
+    }
+
+
+    // close auction
+    closeActiveAuction(aid);
+    sendResponse("RCL OK\n");
+
+    return;
+
 }
 
 
 // Auxiliary functions
 
 
-int ServerTCP::sendResponse(const char* response, int new_sock) {
-    if (write(new_sock, response, strlen(response)) == -1) {
+int ServerTCP::sendResponse(const char* response) {
+    if (write(socketTCP, response, strlen(response)) == -1) {
         std::cout << "WARNING: write error\n";
         return 1;
     }

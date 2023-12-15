@@ -41,11 +41,18 @@ int isValidPassword(std::string& uid, std::string& password);
 
 int createLogin(std::string& uid);
 int eraseLogin(std::string& uid);
+int logoutAllUsers();
 int isUserLogged(std::string& uid);
 
+int getNumAuctions();
+int existsAuctionDir(std::string& aid);
 int createAuctionDir(std::string& aid);
 int createStartFile(std::string& aid, std::string& uid, std::string& name, std::string& fname,
                     std::string& start_value, std::string& timeactive);
+int createEndFile(std::string& aid, std::string& end_datetime, std::string& end_sec_time);
+int isAuctionStillActive(std::string& aid);
+int closeActiveAuction(std::string& aid);
+
 int createAssetFile(std::string& aid, std::string& fname, std::string& fdata);
 int checkAssetFile(std::string& fname);
 

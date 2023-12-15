@@ -98,14 +98,20 @@ void ServerUDP::handleLogin(std::string& additionalInfo){
             return;
         }
 
-        if (!createLogin(uid)) return;
+        if (!createLogin(uid)){  // error message sent otherwise user never receives response
+            sendResponse("RLI ERR\n"); 
+            return;
+        }
         
         // successfully logged in
         sendResponse("RLI OK\n"); // TODO: check for error // do we need to since it returns anyway?
     }
     else {
         if (!createPassword(uid, password)) return;
-        if (!createLogin(uid)) return;
+        if (!createLogin(uid)){
+            sendResponse("RLI ERR\n"); 
+            return;
+        }
 
         // successfully registered user
         sendResponse("RLI REG\n"); //TODO what if the user existed but had been unregistered?

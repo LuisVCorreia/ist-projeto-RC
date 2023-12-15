@@ -323,11 +323,6 @@ void ClientTCP::receiveCloseResponse(const std::string& uid, const std::string& 
 // Validation
 
 
-bool ClientTCP::isAidValid(std::string& aid) {
-    return (aid.length() == 3 && std::all_of(aid.begin(), aid.end(), ::isdigit));
-}
-
-
 int ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo) {
     auctionInfo.name = additionalInfo.substr(0, additionalInfo.find(' '));
     additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);

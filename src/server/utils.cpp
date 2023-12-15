@@ -159,16 +159,14 @@ int createLogin(std::string& uid) {
     fs::path LOGIN_file = USER_dir / (uid + "_login.txt");
 
     try {
-        if (!fs::exists(LOGIN_file)) {
+        if (!fs::exists(LOGIN_file)) 
             std::ofstream ofs(LOGIN_file);
-            return 1;
-        }
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
         return 0;
     }
 
-    return 0;
+    return 1;
 
 }
 
@@ -189,6 +187,30 @@ int eraseLogin(std::string& uid) {
         std::cerr << e.what() << std::endl;
         return 0;
     }
+    return 1;
+}
+
+// calls the eraseLogin method for each user in the server
+int logoutAllUsers() {
+    fs::path usersDir = fs::path("src/server/USERS");
+
+    if (!fs::exists(usersDir)) {
+        std::cerr << "Users directory not found" << std::endl;
+        return 0;
+    }
+
+    try {
+        for (const auto& entry : fs::directory_iterator(usersDir)) {
+            if (fs::is_directory(entry)) {
+                std::string uid = entry.path().filename().string();
+                eraseLogin(uid);
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
     return 1;
 }
 
@@ -214,6 +236,48 @@ int isUserLogged(std::string& uid) {
 
 
 // Auction
+
+int getNumAuctions() {
+    fs::path AUCTIONS_dir = fs::path("src/server/AUCTIONS");
+
+    if (!fs::exists(AUCTIONS_dir)) {
+        std::cerr << "Auctions directory not found" << std::endl;
+        return 0;
+    }
+
+    int numAuctions = 0;
+
+    try {
+        for (const auto& entry : fs::directory_iterator(AUCTIONS_dir)) {
+            if (fs::is_directory(entry)) {
+                numAuctions++;
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return numAuctions;
+}
+
+
+int existsAuctionDir(std::string& aid) {
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+
+    try {
+        if (!fs::exists(AUCTION_dir))
+            return 0;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+}
 
 
 // create new auction directory
@@ -261,7 +325,6 @@ int createStartFile(std::string& aid, std::string& uid, std::string& name, std::
     fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
     fs::path START_file = AUCTION_dir / ("START_" + aid + ".txt");
 
-    
     //get current time
 
     time_t now = time(0); // gets time in seconds since 1970
@@ -269,7 +332,7 @@ int createStartFile(std::string& aid, std::string& uid, std::string& name, std::
 
     char buffer[80]; //TODO adjust size
     // converts to string in format YYYY-MM-DD HH:MM:SS
-    strftime(buffer,80,"%Y-%m-%d-%H-%M-%S",timeinfo);
+    strftime(buffer,80,"%Y-%m-%d %H:%M:%S",timeinfo);
 
     std::string start_datetime(buffer); // in date format
     std::string start_fulltime = std::to_string(now); // in seconds
@@ -279,7 +342,7 @@ int createStartFile(std::string& aid, std::string& uid, std::string& name, std::
         if (!fs::exists(START_file)) {
             std::ofstream ofs(START_file);
             ofs << uid << " " << name << " " << fname << " " << start_value << " " << timeactive
-                << start_datetime << " " << start_fulltime << "\n";
+                << " " << start_datetime << " " << start_fulltime;
             ofs.close();
         }
     } catch (const fs::filesystem_error& e) {
@@ -287,6 +350,125 @@ int createStartFile(std::string& aid, std::string& uid, std::string& name, std::
         return 0;
     }
     return 1;
+}
+
+
+// creates end file containing end_datetime and end_sec_time where end_datetime is the date 
+// in format YYYY-MM-DD HH:MM:SS and end_sec_time is the number of seconds in which the auction was active for
+int createEndFile(std::string& aid, std::string& end_datetime, std::string& end_sec_time){
+    if (aid.length() != 3)
+        return 0;
+
+    std::cout << "creating end file\n";
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path END_file = AUCTION_dir / ("END_" + aid + ".txt");
+
+    try {
+        if (!fs::exists(END_file)) {
+            std::ofstream ofs(END_file);
+            ofs << end_datetime << " " << end_sec_time;
+            ofs.close();
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 1;
+}
+
+
+
+int isAuctionStillActive(std::string& aid){
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path START_file = AUCTION_dir / ("START_" + aid + ".txt");
+    fs::path END_file = AUCTION_dir / ("END_" + aid + ".txt");
+
+    try {
+        if (!fs::exists(START_file) || fs::exists(END_file)) {
+            return 0;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    std::ifstream ifs(START_file);
+    std::string uid, name, fname, start_value, timeactive, start_date, start_time, start_fulltime;
+    ifs >> uid >> name >> fname >> start_value >> timeactive >> start_date >> start_time >> start_fulltime;
+    ifs.close();
+
+    // check whether start_datetime + start_fulltime is greater than current time since 1970
+    long time_active_seconds = std::stol(timeactive);
+    time_t start_time_seconds = std::stol(start_fulltime);
+    time_t now = time(0);
+
+    if (now - start_time_seconds > time_active_seconds) {
+        // auction is no longer active
+        
+        // end_datetime is the start time plus the time active
+        time_t end_time_seconds = start_time_seconds + time_active_seconds;
+        tm* end_timeinfo = localtime(&end_time_seconds);
+        
+        char end_buffer[80];
+        strftime(end_buffer, 80, "%Y-%m-%d %H:%M:%S", end_timeinfo);
+
+        std::string end_datetime(end_buffer);
+        std::string end_sec_time = std::to_string(time_active_seconds);
+
+        createEndFile(aid, end_datetime, end_sec_time);
+        return 0;
+    }
+    return 1;
+}
+
+
+
+// closes the auction while it is still active
+int closeActiveAuction(std::string& aid){
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path START_file = AUCTION_dir / ("START_" + aid + ".txt");
+    fs::path END_file = AUCTION_dir / ("END_" + aid + ".txt");
+
+    // Check if the auction is already closed
+    if (fs::exists(END_file)) {
+        std::cerr << "Auction already closed." << std::endl;
+        return 0;
+    }
+
+    // Check if the start file exists
+    if (!fs::exists(START_file)) {
+        std::cerr << "Start file does not exist." << std::endl;
+        return 0;
+    }
+
+    std::ifstream ifs(START_file);
+    if (!ifs) {
+        std::cerr << "Unable to open start file." << std::endl;
+        return 0;
+    }
+
+    std::string uid, name, fname, start_value, timeactive, start_date, start_time, start_fulltime;
+    ifs >> uid >> name >> fname >> start_value >> timeactive >> start_date >> start_time >> start_fulltime;
+    ifs.close();
+
+    time_t now = time(0);
+    tm* timeinfo = localtime(&now);
+
+    char buffer[80];
+    strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
+
+    std::string end_datetime(buffer);
+    time_t start_time_seconds = std::stol(start_fulltime);
+    std::string end_sec_time = std::to_string(now - start_time_seconds);
+
+    return createEndFile(aid, end_datetime, end_sec_time);
 }
 
 
