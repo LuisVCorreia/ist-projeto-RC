@@ -23,9 +23,6 @@ ClientTCP::~ClientTCP() {
 }
 
 
-
-
-
 // Handle Commands
 
 
@@ -41,7 +38,7 @@ void ClientTCP::handleOpen(std::string& additionalInfo, std::string& uid, std::s
     AuctionInfo auctionInfo;
     
     // parse additionalInfo
-    bool isValid = parseOpenInfo(additionalInfo, auctionInfo);
+    int isValid = parseOpenInfo(additionalInfo, auctionInfo);
     if (!isValid) return;
 
     // read file
@@ -331,26 +328,26 @@ bool ClientTCP::isAidValid(std::string& aid) {
 }
 
 
-bool ClientTCP::isFnameValid(std::string& fname) {
-    // check fname is limited to a total of 24 alphanumerical characters 
-    // (plus ‘-‘, ‘_’ and ‘.’), including the separating dot and the 3-letter extension: “nnn…nnnn.xxx”.
+int ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo) {
+    auctionInfo.name = additionalInfo.substr(0, additionalInfo.find(' '));
+    additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
 
-    auto len = fname.length();
-    if (len <= 24 && len >= 5 && fname[len - 4] == '.') {
+    if (!isAuctionNameValid(auctionInfo.name)) return false;
 
-        auto isValidChar = [](char c) { // lambda function
-            return std::isalnum(c) || c == '-' || c == '_' || c == '.';
-        };
+    auctionInfo.asset_fname = additionalInfo.substr(0, additionalInfo.find(' '));
+    additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
 
-        if (!(std::all_of(fname.begin(), fname.end() - 4, isValidChar)) || 
-            !(std::all_of(fname.end() - 3, fname.end(), ::isalnum))) {
-            std::cout << "Invalid Fname format" << std::endl;
-            return false; 
-        }
-    } else {
-        std::cout << "Invalid Fname format" << std::endl;
-        return false;
-    }
+    if (!isFnameValid(auctionInfo.asset_fname)) return false;
+
+    auctionInfo.start_value = additionalInfo.substr(0, additionalInfo.find(' '));
+    additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
+
+    if (!isStartValueValid(auctionInfo.start_value)) return false;
+
+    auctionInfo.timeactive = additionalInfo;
+
+    if (!isTimeActiveValid(auctionInfo.timeactive)) return false;
+
     return true;
 }
 
@@ -397,43 +394,4 @@ std::string ClientTCP::readFileBinary(const std::string& fname) {
         return "";
     }
     return oss.str();
-}
-
-
-bool ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo) {
-    auctionInfo.name = additionalInfo.substr(0, additionalInfo.find(' '));
-    additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
-
-    // check name is up to 10 alphanumeric characters
-    if (auctionInfo.name.length() > 10 || auctionInfo.name.length() == 0 ||
-        !std::all_of(auctionInfo.name.begin(), auctionInfo.name.end(), ::isalnum)) {
-        std::cout << "Invalid description name" << std::endl;
-        return false;
-    }
-
-    auctionInfo.asset_fname = additionalInfo.substr(0, additionalInfo.find(' '));
-    additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
-
-    if (!isFnameValid(auctionInfo.asset_fname)) return false;
-
-    auctionInfo.start_value = additionalInfo.substr(0, additionalInfo.find(' '));
-    additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
-
-    // check start_value is represented with up to 6 digits
-    if (auctionInfo.start_value.length() > 6 || 
-        !std::all_of(auctionInfo.start_value.begin(), auctionInfo.start_value.end(), ::isdigit)) {
-        std::cout << "Invalid start value" << std::endl;
-        return false;
-    }
-
-    auctionInfo.timeactive = additionalInfo;
-
-    // check timeactive is represented with up to 5 digits
-    if (auctionInfo.timeactive.length() > 5 || 
-        !std::all_of(auctionInfo.timeactive.begin(), auctionInfo.timeactive.end(), ::isdigit)) {
-        std::cout << "Invalid duration of auction" << std::endl;
-        return false;
-    }
-
-    return true;
 }

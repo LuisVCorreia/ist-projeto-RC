@@ -26,8 +26,8 @@ ServerUDP::ServerUDP(const char* port, int& socketUDP) {
 
 void ServerUDP::receiveRequest(){
     char buffer[1024];
-    std::string request, command, additionalInfo;
     client_addrlen = sizeof(client_addr);
+    std::string request, command, additionalInfo;
 
     // Receive data from the UDP socket
     ssize_t received_bytes = recvfrom(socketUDP, buffer, 1023, 0, (struct sockaddr*)&client_addr, &client_addrlen);
@@ -58,16 +58,20 @@ void ServerUDP::receiveRequest(){
     } else 
         command = request;
 
-    
 
     if (command == "LIN") 
         handleLogin(additionalInfo);
     else if (command == "LOU")
         handleLogout(additionalInfo);
+    else if (command == "UNR")
+        handleUnregister(additionalInfo);
     else
         std::cout << "unknown command\n"; //TODO: fix this
 
 }
+
+
+// Request Handlers
 
 
 void ServerUDP::handleLogin(std::string& additionalInfo){
@@ -77,7 +81,7 @@ void ServerUDP::handleLogin(std::string& additionalInfo){
     
     uid = additionalInfo.substr(0, splitIndex);
     password = additionalInfo.substr(splitIndex + 1);
-
+    //TODO loginValid sounds like isValidPassword, maybe change names
     if (!loginValid(uid, password)) { // validate uid and password
         sendResponse("RLI ERR\n");
         return;
@@ -97,7 +101,7 @@ void ServerUDP::handleLogin(std::string& additionalInfo){
         if (!createLogin(uid)) return;
         
         // successfully logged in
-        sendResponse("RLI OK\n"); // TODO: check for error
+        sendResponse("RLI OK\n"); // TODO: check for error // do we need to since it returns anyway?
     }
     else {
         if (!createPassword(uid, password)) return;
@@ -122,11 +126,65 @@ void ServerUDP::handleLogout(std::string& additionalInfo){
         return;
     }
 
-    //if (!isValidPassword(uid, password))
+    if (!isValidPassword(uid, password)) { // received password is incorrect
+        sendResponse("RLO NOK\n"); //TODO send NOK or ERR?
+        return;
+    }
 
-    
-    
+    if (!existsUserDir(uid)) { // user was not registered
+        sendResponse("RLO UNR\n");
+        return;
+    }
+
+    if (!isUserLogged(uid)) {
+        sendResponse("RLO NOK\n"); //TODO send NOK or ERR?
+        return;
+    }
+ 
+    if (!eraseLogin(uid)) return; // logout user
+    sendResponse("RLO OK\n"); //TODO check for error
+
+    return;    
 }
+
+
+void ServerUDP::handleUnregister(std::string& additionalInfo){
+    std::string uid, password;
+
+    size_t splitIndex = additionalInfo.find(' ');
+    
+    uid = additionalInfo.substr(0, splitIndex);
+    password = additionalInfo.substr(splitIndex + 1);
+
+    if (!loginValid(uid, password)) { // validate uid and password
+        sendResponse("RUR ERR\n");
+        return;
+    }
+
+    if (!isValidPassword(uid, password)) { // received password is incorrect
+        sendResponse("RUR NOK\n"); //TODO send NOK or ERR?
+        return;
+    }
+
+    if (!existsUserDir(uid)) { // user was not registered
+        sendResponse("RUR UNR\n");
+        return;
+    }
+
+    if (!isUserLogged(uid)) { // user is not logged in
+        sendResponse("RUR NOK\n");
+        return;
+    }
+
+    if (!eraseLogin(uid)) return; // logout user
+    if (!erasePassword(uid)) return; // unregister user
+    sendResponse("RUR OK\n"); //TODO check for error
+
+    return;    
+}
+
+
+// Auxiliary Functions
 
 
 int ServerUDP::sendResponse(const char* response) {

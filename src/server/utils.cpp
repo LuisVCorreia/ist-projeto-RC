@@ -1,37 +1,9 @@
 #include "utils.hpp"
 
 
-int createAuctionDir(std::string& aid){
-    if (aid.length() != 3)
-        return 0;
+// User Directory
 
-    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
-    fs::path BIDS_dir = AUCTION_dir / "BIDS";
-
-    try {
-        // Create auction directory
-        if (!fs::create_directories(AUCTION_dir)) {
-            std::cerr << "Directory already exists or cannot be created: " << AUCTION_dir << std::endl;
-            return 0;
-        }
-
-        // Create bids directory
-        if (!fs::create_directories(BIDS_dir)) {
-            std::cerr << "Failed to create BIDS directory in: " << BIDS_dir << std::endl;
-            return 0;
-        }
-
-    } catch (const fs::filesystem_error& e) {
-        std::cerr << e.what() << std::endl;
-        return 0;
-    }
-
-    return 1;
-
-}
-
-
-
+// create new user directory
 int createUserDir(std::string& uid) {
     if (uid.length() != 6)
         return 0;
@@ -68,8 +40,7 @@ int createUserDir(std::string& uid) {
 }
 
 
-
-// check if user directory exists
+// check if the user directory exists
 int existsUserDir(std::string& uid) {
     if (uid.length() != 6)
         return 0;
@@ -89,6 +60,52 @@ int existsUserDir(std::string& uid) {
 }
 
 
+// Password
+
+
+// create new password file
+int createPassword(std::string& uid, std::string& password) {
+    if (uid.length() != 6 || password.length() != 8)
+        return 0;
+
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
+
+    try {
+        if (!fs::exists(PASSWORD_file)) {
+            std::ofstream ofs(PASSWORD_file);
+            ofs << password;
+            ofs.close();
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 1;
+}
+
+
+// erase password file
+int erasePassword(std::string& uid) {
+    if (uid.length() != 6)
+        return 0;
+
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
+
+    try {
+        if (fs::exists(PASSWORD_file)) {
+            fs::remove(PASSWORD_file);
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 1;
+}
+
+
+// check if the user is registered
 int isUserRegistered(std::string& uid) {
     fs::path USER_dir = fs::path("src/server/USERS") / uid;
     fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
@@ -130,6 +147,8 @@ int isValidPassword(std::string& uid, std::string& password){
 }
 
 
+// Login
+
 
 // create new login file
 int createLogin(std::string& uid) {
@@ -154,29 +173,7 @@ int createLogin(std::string& uid) {
 }
 
 
-
-int createPassword(std::string& uid, std::string& password) {
-    if (uid.length() != 6 || password.length() != 8)
-        return 0;
-
-    fs::path USER_dir = fs::path("src/server/USERS") / uid;
-    fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
-
-    try {
-        if (!fs::exists(PASSWORD_file)) {
-            std::ofstream ofs(PASSWORD_file);
-            ofs << password;
-            ofs.close();
-        }
-    } catch (const fs::filesystem_error& e) {
-        std::cerr << e.what() << std::endl;
-        return 0;
-    }
-    return 1;
-}
-
-
-
+// erase login file
 int eraseLogin(std::string& uid) {
     if (uid.length() != 6)
         return 0;
@@ -196,6 +193,127 @@ int eraseLogin(std::string& uid) {
 }
 
 
+// check if the user is logged in
+int isUserLogged(std::string& uid) {
+    if (uid.length() != 6)
+        return 0;
+
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path LOGIN_file = USER_dir / (uid + "_login.txt");
+
+    try {
+        if (fs::exists(LOGIN_file)) {
+            return 1;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 0;
+}
+
+
+// Auction
+
+
+// create new auction directory
+int createAuctionDir(std::string& aid){
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path BIDS_dir = AUCTION_dir / "BIDS";
+    fs::path ASSET_dir = AUCTION_dir / "ASSET";
+
+    try {
+        // create auction directory
+        if (!fs::create_directories(AUCTION_dir)) {
+            std::cerr << "Directory already exists or cannot be created: " << AUCTION_dir << std::endl;
+            return 0;
+        }
+
+        // create bids directory
+        if (!fs::create_directories(BIDS_dir)) {
+            std::cerr << "Failed to create BIDS directory in: " << BIDS_dir << std::endl;
+            return 0;
+        }
+
+        // create asset directory
+        if (!fs::create_directories(ASSET_dir)) {
+            std::cerr << "Failed to create ASSET directory in: " << ASSET_dir << std::endl;
+            return 0;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+
+}
+
+
+// create start file in auction directory
+int createStartFile(std::string& aid, std::string& uid, std::string& name, std::string& fname, std::string& start_value, std::string& timeactive){
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path START_file = AUCTION_dir / ("START_" + aid + ".txt");
+
+    
+    //get current time
+
+    time_t now = time(0); // gets time in seconds since 1970
+    tm* timeinfo = localtime(&now); // gets time in struct tm format
+
+    char buffer[80]; //TODO adjust size
+    // converts to string in format YYYY-MM-DD HH:MM:SS
+    strftime(buffer,80,"%Y-%m-%d-%H-%M-%S",timeinfo);
+
+    std::string start_datetime(buffer); // in date format
+    std::string start_fulltime = std::to_string(now); // in seconds
+
+
+    try {
+        if (!fs::exists(START_file)) {
+            std::ofstream ofs(START_file);
+            ofs << uid << " " << name << " " << fname << " " << start_value << " " << timeactive
+                << start_datetime << " " << start_fulltime << "\n";
+            ofs.close();
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 1;
+}
+
+
+// create asset file in auction directory
+int createAssetFile(std::string& aid, std::string& fname, std::string& fdata){
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path ASSET_dir = AUCTION_dir / "ASSET";
+    fs::path ASSET_file = ASSET_dir / fname;
+
+    try {
+        if (!fs::exists(ASSET_file)) {
+            std::ofstream ofs(ASSET_file);
+            ofs << fdata;
+            ofs.close();
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 1;
+}
+
+
+// check if the asset file exists
 int checkAssetFile(std::string& fname)
 {
     struct stat filestat;

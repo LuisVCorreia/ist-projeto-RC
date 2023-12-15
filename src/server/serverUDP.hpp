@@ -28,6 +28,7 @@ class ServerUDP {
         int socketUDP;
         void handleLogin(std::string& additionalInfo);
         void handleLogout(std::string& additionalInfo);
+        void handleUnregister(std::string& additionalInfo);
 
         int sendResponse(const char* response);
        

@@ -31,14 +31,22 @@ typedef struct {
 
 } BIDLIST;
 
-int createAuctionDir(std::string& aid);
 int createUserDir(std::string& uid);
 int existsUserDir(std::string& uid);
+
+int createPassword(std::string& uid, std::string& password);
+int erasePassword(std::string& uid);
 int isUserRegistered(std::string& uid);
 int isValidPassword(std::string& uid, std::string& password);
+
 int createLogin(std::string& uid);
-int createPassword(std::string& uid, std::string& password);
 int eraseLogin(std::string& uid);
+int isUserLogged(std::string& uid);
+
+int createAuctionDir(std::string& aid);
+int createStartFile(std::string& aid, std::string& uid, std::string& name, std::string& fname,
+                    std::string& start_value, std::string& timeactive);
+int createAssetFile(std::string& aid, std::string& fname, std::string& fdata);
 int checkAssetFile(std::string& fname);
 
 //int GetBidList(std::string& aid, BIDLIST *list);

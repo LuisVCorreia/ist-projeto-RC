@@ -30,6 +30,11 @@ class ClientTCP {
         void handleClose(const std::string& additionalInfo, const std::string& uid, const std::string& password);
         void handleShowAsset(const std::string& additionalInfo);
         void handleBid(const std::string& additionalInfo, const std::string& uid, const std::string& password);
+    
+    private:
+        int fd;
+        struct addrinfo *res;
+        const char* asip;
 
         struct AuctionInfo {
             std::string name;
@@ -38,11 +43,6 @@ class ClientTCP {
             std::string timeactive;
             std::string fdata; 
         };
-    
-    private:
-        int fd;
-        struct addrinfo *res;
-        const char* asip;
 
         bool sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo);
         bool sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid);
@@ -55,11 +55,10 @@ class ClientTCP {
         void receiveBidResponse();
 
         bool isAidValid(std::string& aid);
-        bool isFnameValid(std::string& fname);
+        int parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
 
         bool readTCPdata(std::string& response);
         std::string readFileBinary(const std::string& fname);
-        bool parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
         
 };
 
