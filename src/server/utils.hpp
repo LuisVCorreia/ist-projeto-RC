@@ -13,6 +13,7 @@
 #include <algorithm>
 
 #include <filesystem>
+#include <common/common.hpp>
 
 namespace fs = std::filesystem;
 
@@ -60,8 +61,7 @@ int isAuctionStillActive(std::string& aid);
 int closeActiveAuction(std::string& aid);
 
 int createAssetFile(std::string& aid, std::string& fname, std::string& fdata);
-int checkAssetFile(std::string& fname);
-
+int getAssetFile(std::string& aid, std::string& fname, std::string& fsize, std::string& fdata);
 int placeBid(std::string& aid, std::string& uid, std::string& value);
 int getHighestBid(std::string& aid);
 

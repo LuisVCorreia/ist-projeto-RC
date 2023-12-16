@@ -42,14 +42,12 @@ void ClientTCP::handleOpen(std::string& additionalInfo, std::string& uid, std::s
     if (!isValid) return;
 
     // read file
-    auctionInfo.fdata = readFileBinary(auctionInfo.asset_fname);
+    auctionInfo.fdata = readFileBinary("src/client/ASSETS/" + auctionInfo.asset_fname);
     if (auctionInfo.fdata.empty()) return;
 
     // validate file size
-    if (auctionInfo.fdata.size() > 10 * 1024 * 1024) {
-        std::cout << "File size exceeds 10 MB limit." << std::endl;
-        return;
-    }
+    std::string fsizeStr = std::to_string(auctionInfo.fdata.size());
+    if (!isFsizeValid(fsizeStr)) return;
 
     // send request
     if (!sendOpenRequest(uid, password, auctionInfo)) return;
@@ -176,6 +174,7 @@ void ClientTCP::receiveOpenResponse() {
     std::string response, response_code, status;
 
     if (!readTCPdata(response)) {
+std::cout << "problem reading response\n";
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
@@ -226,9 +225,6 @@ void ClientTCP::receiveShowAssetResponse() {
     std::string response_code, status, fname, fsizeStr;
     iss >> response_code >> status >> fname >> fsizeStr;
 
-    std::cout << "File name: " << fname << std::endl;
-    std::cout << "File size: " << fsizeStr << std::endl;
-
     size_t metadata_end = iss.tellg();
     metadata_end = response.find_first_not_of(" ", metadata_end); 
 
@@ -237,11 +233,14 @@ void ClientTCP::receiveShowAssetResponse() {
         return;
     }
 
+    std::cout << "File name: " << fname << std::endl;
+    std::cout << "File size: " << fsizeStr << std::endl;
+
     // write file data
     size_t fsize = std::stoul(fsizeStr);
     std::string fdata = response.substr(metadata_end, fsize);
 
-    writeFileBinary(fname, fdata);
+    writeFileBinary("src/client/ASSETS/" + fname, fdata);
 }
 
 
@@ -360,7 +359,10 @@ bool ClientTCP::readTCPdata(std::string& response) {
     
     closeTCPConn(fd);
     
-    if (n == -1) return false; // error whilst reading
+    if (n == -1){
+        perror("Error reading from socket");
+        return false; // error whilst reading
+}
 
     //check last character of response
     if (response.empty() || response.back() != '\n')

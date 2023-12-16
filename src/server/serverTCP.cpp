@@ -90,8 +90,10 @@ void ServerTCP::receiveRequest(int& as_socket){
         handleClose(additionalInfo);
     else if (command == "BID")
         handleBid(additionalInfo);
+    else if (command == "SAS")
+        handleShowAsset(additionalInfo);
     else
-        std::cout << "unknown command\n"; //TODO: fix this
+        sendResponse("ERR\n");
 
     closeTCPConn(socketTCP);
 }
@@ -144,14 +146,12 @@ void ServerTCP::handleOpen(std::string& additionalInfo) {
     }
 
     // auction created successfully
-    
-    char response[12] = "ROA OK ";
-    strcat(response, aid.c_str());
-    strcat(response, "\n");
-    
-    sendResponse(response);
+    std::ostringstream responseStream;
+    responseStream << "ROA OK " << aid << "\n";
 
-    return;
+    std::cout << responseStream.str() << std::endl;
+
+    sendResponse(responseStream.str().c_str());
 }
 
 
@@ -213,7 +213,53 @@ void ServerTCP::handleClose(std::string& additionalInfo){
     closeActiveAuction(aid);
     sendResponse("RCL OK\n");
 
-    return;
+}
+
+
+void ServerTCP::handleShowAsset(std::string& additionalInfo){
+    //additionalInfo in the form AID
+
+    std::string aid = additionalInfo;
+
+    if (!isAidValid(aid)) {
+        sendResponse("ERR\n");
+        return;
+    }
+
+    std::string fname, fsize, fdata;
+
+    if (!getAssetFile(aid, fname, fsize, fdata)) {
+        sendResponse("RSA NOK\n");
+        return;
+    }
+
+    // send response
+    std::ostringstream responseStream;
+    // format is RSA status [Fname Fsize Fdata]
+    responseStream << "RSA OK " << fname << " " << fsize << " " << fdata << "\n";
+
+    // std::string response = responseStream.str();
+    // std::istringstream iss(response);
+    // std::string response_code, status, fsizeStr;
+    // iss >> response_code >> status >> fname >> fsizeStr;
+
+    // size_t metadata_end = iss.tellg();
+    // metadata_end = response.find_first_not_of(" ", metadata_end); 
+
+    // if (metadata_end == std::string::npos || metadata_end >= response.size()) {
+    //     std::cout << "WARNING: unexpected protocol message\n";
+    //     return;
+    // }
+
+    // fsize = std::stoul(fsizeStr);
+    // fdata = response.substr(metadata_end, (size_t)fsize);
+
+    // writeFileBinary(fname, fdata);
+
+
+    std::cout << responseStream.str() << std::endl;
+
+    sendResponse(responseStream.str().c_str());
 
 }
 
@@ -253,7 +299,6 @@ void ServerTCP::handleBid(std::string& additionalInfo){
         sendResponse("ERR\n");
         return;
     }
-
     
     if (!isAuctionStillActive(aid)) {
         sendResponse("RBD NOK\n"); // auction is not active
@@ -278,7 +323,6 @@ void ServerTCP::handleBid(std::string& additionalInfo){
         return;
     }
     
-
     int valueInt = std::stoi(value);
     if (valueInt <= currentValue) {
         sendResponse("RBD REF\n");
@@ -292,9 +336,7 @@ void ServerTCP::handleBid(std::string& additionalInfo){
         return;
     }
 
-    sendResponse("RBD OK\n");
-
-    return;
+    sendResponse("RBD ACC\n");
 }
 
 
@@ -389,7 +431,7 @@ int ServerTCP::validateOpenRequestInfo(OpenRequestInfo& openRequestInfo) {
     if (!isValueValid(openRequestInfo.start_value)) return 0;
     if (!isTimeActiveValid(openRequestInfo.timeactive)) return 0;
     if (!isFnameValid(openRequestInfo.fname)) return 0;
-    if (!isFsizeValid(openRequestInfo.fsize)) return 0;
+    if (!isFsizeValid((const std::string)openRequestInfo.fsize)) return 0;
 
     //TODO should we validate if fdata is right size? fsize refers to bytes, not string length
 

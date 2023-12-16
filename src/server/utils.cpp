@@ -104,19 +104,20 @@ std::string getAuctionHost(std::string& aid){
     if (aid.length() != 3)
         return "";
 
+    std::string uid;
     fs::path AUCTION_dir = fs::path("src/server/AUCTIONS/") / aid;
-    fs::path START_file = AUCTION_dir / ("/START_" + aid + ".txt");
+    fs::path START_file = AUCTION_dir / ("START_" + aid + ".txt");
 
     try {
-        if (!fs::exists(START_file)) {
-            std::ifstream file(START_file);
-            file >> aid;
-        }
+        if (!fs::exists(START_file)) 
+            return "";
+        std::ifstream file(START_file);
+        file >> uid;
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
         return ""; //TODO check for this on server code
     }
-    return aid;
+    return uid;
 
 }
 
@@ -128,16 +129,14 @@ std::string getAuctionStartFullTime(std::string& aid){
         return "";
 
     fs::path AUCTION_dir = fs::path("src/server/AUCTIONS/") / aid;
-    fs::path START_file = AUCTION_dir / ("/START_" + aid + ".txt");
+    fs::path START_file = AUCTION_dir / ("START_" + aid + ".txt");
 
     try {
-        if (!fs::exists(START_file)) {
-            std::ifstream file(START_file);
-            std::string uid, name, fname, start_value, timeactive, start_date, start_time;
-            file >> uid >> name >> fname >> start_value >> timeactive >> start_date >> start_time >> start_fulltime;
-
-            return start_fulltime;
-        }
+        if (!fs::exists(START_file)) 
+            return "";
+        std::ifstream file(START_file);
+        std::string uid, name, fname, start_value, timeactive, start_date, start_time;
+        file >> uid >> name >> fname >> start_value >> timeactive >> start_date >> start_time >> start_fulltime;
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
         return "";
@@ -566,11 +565,10 @@ int createAssetFile(std::string& aid, std::string& fname, std::string& fdata){
     fs::path ASSET_file = ASSET_dir / fname;
 
     try {
-        if (!fs::exists(ASSET_file)) {
-            std::ofstream ofs(ASSET_file);
-            ofs << fdata;
-            ofs.close();
-        }
+        if (fs::exists(ASSET_file))
+            return 0;
+        std::ofstream ofs(ASSET_file);
+        writeFileBinary(ASSET_file, fdata);
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
         return 0;
@@ -579,18 +577,37 @@ int createAssetFile(std::string& aid, std::string& fname, std::string& fdata){
 }
 
 
-// check if the asset file exists
-int checkAssetFile(std::string& fname)
-{
-    struct stat filestat;
-    int ret_stat;
+int getAssetFile(std::string& aid, std::string& fname, std::string& fsize, std::string& fdata){
+    if (aid.length() != 3)
+        return 0;
 
-    ret_stat = stat(fname.c_str(), &filestat);
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path ASSET_dir = AUCTION_dir / "ASSET";
 
-    if (ret_stat == -1 || filestat.st_size == 0)
-        return (0);
+    for (const auto& entry : fs::directory_iterator(ASSET_dir)) {
+        if (fs::is_regular_file(entry)) {
+            fname = entry.path().filename().string();
+        }
+    }
 
-    return (filestat.st_size);
+    fs::path ASSET_file = ASSET_dir / fname;
+
+    if (!isFnameValid) return 0;
+
+    try {
+        if (!fs::exists(ASSET_file)) {
+            return 0;
+        }
+        fdata = readFileBinary(ASSET_file);
+        fsize = std::to_string(fdata.length());
+
+        if (!isFsizeValid(fsize)) return 0;
+
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+    return 1;
 }
 
 

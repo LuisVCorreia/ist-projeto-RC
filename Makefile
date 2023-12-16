@@ -78,22 +78,9 @@ src/server/Server: $(SERVER_OBJECTS) $(SERVER_HEADERS) $(COMMON_OBJECTS) $(COMMO
 src/client/User: $(CLIENT_OBJECTS) $(CLIENT_HEADERS) $(COMMON_OBJECTS) $(COMMON_HEADERS)
 
 AS: src/server/Server
-	cp src/server/Server AS
+	cp -f src/server/Server AS
 user: src/client/User
-	cp src/client/User user
-
-
-# src/server/Server: $(SERVER_OBJECTS) $(COMMON_OBJECTS)
-# 	$(LD) $(LDFLAGS) -o $@ $^
-
-# src/client/User: $(CLIENT_OBJECTS) $(COMMON_OBJECTS)
-# 	$(LD) $(LDFLAGS) -o $@ $^
-
-# AS: src/server/Server
-# 	cp src/server/Server AS
-
-# user: src/client/User
-# 	cp src/client/User user
+	cp -f src/client/User user
 
 clean:
 	rm -f $(OBJECTS) $(TARGETS) $(TARGET_EXECS)

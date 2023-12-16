@@ -24,7 +24,7 @@ int isFnameValid(std::string& fname);
 int isAuctionNameValid(std::string& aid);
 int isValueValid(std::string& value);
 int isTimeActiveValid(std::string& timeactive);
-int isFsizeValid(std::string& fsize);
+int isFsizeValid(const std::string& fsize);
 
 std::string readFileBinary(const std::string& fname);
 int writeFileBinary(const std::string& fname, const std::string& data);

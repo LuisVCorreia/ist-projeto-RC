@@ -93,10 +93,11 @@ int isTimeActiveValid(std::string& timeactive) {
     return 1;
 }
 
-int isFsizeValid(std::string& fsize) {
+int isFsizeValid(const std::string& fsize) {
     // check fsize is represented with up to 8 digits
     if (fsize.length() > 8 || 
-        !std::all_of(fsize.begin(), fsize.end(), ::isdigit)) {
+        !std::all_of(fsize.begin(), fsize.end(), ::isdigit) ||
+        std::stoi(fsize) > 1024 * 1024 * 10 || std::stoi(fsize) < 0) {
         std::cout << "Invalid file size" << std::endl;
         return 0;
     }
@@ -108,7 +109,7 @@ int isFsizeValid(std::string& fsize) {
 
 
 std::string readFileBinary(const std::string& fname) {
-    std::ifstream file("src/client/ASSETS/" + fname, std::ios::binary);
+    std::ifstream file(fname, std::ios::binary);
     if (!file) {
         std::cout << "Cannot open file: " << fname << std::endl;
     }
@@ -124,7 +125,7 @@ std::string readFileBinary(const std::string& fname) {
 
 
 int writeFileBinary(const std::string& fname, const std::string& data) {
-    std::ofstream file("src/client/ASSETS/" + fname, std::ios::binary | std::ios::out);
+    std::ofstream file(fname, std::ios::binary | std::ios::out);
     if (!file) {
         std::cout << "Cannot open file for writing: " << fname << std::endl;
         return false;
