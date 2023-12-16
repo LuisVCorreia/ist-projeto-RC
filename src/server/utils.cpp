@@ -100,6 +100,53 @@ int checkAuctionOwner(std::string& uid, std::string& aid){
 }
 
 
+std::string getAuctionHost(std::string& aid){
+    if (aid.length() != 3)
+        return "";
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS/") / aid;
+    fs::path START_file = AUCTION_dir / ("/START_" + aid + ".txt");
+
+    try {
+        if (!fs::exists(START_file)) {
+            std::ifstream file(START_file);
+            file >> aid;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return ""; //TODO check for this on server code
+    }
+    return aid;
+
+}
+
+
+std::string getAuctionStartFullTime(std::string& aid){
+    std::string start_fulltime;
+
+    if (aid.length() != 3)
+        return "";
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS/") / aid;
+    fs::path START_file = AUCTION_dir / ("/START_" + aid + ".txt");
+
+    try {
+        if (!fs::exists(START_file)) {
+            std::ifstream file(START_file);
+            std::string uid, name, fname, start_value, timeactive, start_date, start_time;
+            file >> uid >> name >> fname >> start_value >> timeactive >> start_date >> start_time >> start_fulltime;
+
+            return start_fulltime;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return "";
+    }
+    return start_fulltime;
+
+}
+
+
 // Password
 
 
@@ -509,7 +556,6 @@ int closeActiveAuction(std::string& aid){
     return createEndFile(aid, end_datetime, end_sec_time);
 }
 
-
 // create asset file in auction directory
 int createAssetFile(std::string& aid, std::string& fname, std::string& fdata){
     if (aid.length() != 3)
@@ -547,6 +593,107 @@ int checkAssetFile(std::string& fname)
     return (filestat.st_size);
 }
 
+
+// Bids
+
+
+// create new bid file
+int placeBid(std::string& aid, std::string& uid, std::string& value){
+    if (aid.length() != 3 || uid.length() != 6)
+        return 0;
+    
+    while (value.length() < 6) {
+        value = "0" + value; // pad with zeros
+    }
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path BIDS_dir = AUCTION_dir / "BIDS";
+    fs::path BID_file = BIDS_dir / (value + ".txt");
+
+    //get current time
+
+    time_t now = time(0); // gets time in seconds since 1970
+    tm* timeinfo = localtime(&now); // gets time in struct tm format
+
+    char buffer[80]; //TODO adjust size
+    // converts to string in format YYYY-MM-DD HH:MM:SS
+    strftime(buffer,80,"%Y-%m-%d %H:%M:%S",timeinfo);
+
+    std::string bid_datetime(buffer); // in date format
+    
+    time_t auction_start = std::stol(getAuctionStartFullTime(aid));
+    time_t bid_sec_time = now - auction_start;
+
+    try {
+        if (!fs::exists(BID_file)) {
+            std::ofstream ofs(BID_file);
+            ofs << uid << " " << value << " " << bid_datetime << " " << bid_sec_time;
+            ofs.close();
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+}
+
+
+// get value of last bid
+int getHighestBid(std::string& aid){
+
+    DIR* dir = opendir(("src/server/AUCTIONS/" + aid + "/BIDS").c_str());
+
+    if (!dir) {
+        std::cerr << "Error opening directory" << std::endl;
+        return -1;
+    }
+
+    std::vector<std::string> files;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (entry->d_type == DT_REG) { // Only regular files
+            files.push_back(entry->d_name);
+        }
+    }
+
+    closedir(dir);
+
+    // no bids were placed
+    if (files.empty()) {
+        // get start value
+        std::ifstream ifs("src/server/AUCTIONS/" + aid + "/START_" + aid + ".txt");
+        if (!ifs) {
+            std::cerr << "Unable to open start file" << std::endl;
+            return -1;
+        }
+
+        std::string uid, name, fname, start_value;
+        ifs >> uid >> name >> fname >> start_value;
+
+        return std::stoi(start_value);
+    }
+
+    // Sort files alphabetically
+    std::sort(files.begin(), files.end());
+
+    // last file
+    std::string lastFile = files.back();
+
+    // open file and get value
+    std::ifstream ifs("src/server/AUCTIONS/" + aid + "/BIDS/" + lastFile);
+    if (!ifs) {
+        std::cerr << "Unable to open file " << lastFile << std::endl;
+        return -1;
+    }
+
+    std::string uid, value;
+    ifs >> uid >> value;
+    ifs.close();
+
+    return std::stoi(value);
+}
 
 
 // int getBidList(std::string&  aid, BIDLIST *list)

@@ -73,7 +73,7 @@ int isAuctionNameValid(std::string& name) {
 }
 
 
-int isStartValueValid(std::string& value) {
+int isValueValid(std::string& value) {
     if (value.length() > 6 || 
         !std::all_of(value.begin(), value.end(), ::isdigit)) {
         std::cout << "Invalid start value" << std::endl;
@@ -108,10 +108,9 @@ int isFsizeValid(std::string& fsize) {
 
 
 std::string readFileBinary(const std::string& fname) {
-    std::ifstream file("src/client/" + fname, std::ios::binary);
+    std::ifstream file("src/client/ASSETS/" + fname, std::ios::binary);
     if (!file) {
         std::cout << "Cannot open file: " << fname << std::endl;
-        return "";
     }
 
     std::ostringstream oss;
@@ -119,21 +118,28 @@ std::string readFileBinary(const std::string& fname) {
 
     if (!oss) {
         std::cout << "Failed to read file: " << fname << std::endl;
-        return "";
     }
     return oss.str();
 }
 
 
-int writeFileBinary(const std::string& fname, int fsize, const char* fdata) {
-    
-    std::ofstream outfile;
-    
-    outfile.open(fname, std::ios::binary);
+int writeFileBinary(const std::string& fname, const std::string& data) {
+    std::ofstream file("src/client/ASSETS/" + fname, std::ios::binary | std::ios::out);
+    if (!file) {
+        std::cout << "Cannot open file for writing: " << fname << std::endl;
+        return false;
+    }
 
-    outfile.write(fdata, static_cast<std::streamsize>(fsize));
+    // Write the binary data to the file
+    file.write(data.c_str(), data.size());
 
-    outfile.close();
+    if (!file.good()) {
+        std::cout << "Failed to write file: " << fname << std::endl;
+        return false;
+    }
 
-    return 1;
+    // Flush the output stream and close the file
+    file.flush();
+    file.close();
+    return true;
 }

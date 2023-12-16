@@ -88,6 +88,8 @@ void ServerTCP::receiveRequest(int& as_socket){
         handleOpen(additionalInfo);
     else if (command == "CLS")
         handleClose(additionalInfo);
+    else if (command == "BID")
+        handleBid(additionalInfo);
     else
         std::cout << "unknown command\n"; //TODO: fix this
 
@@ -216,6 +218,87 @@ void ServerTCP::handleClose(std::string& additionalInfo){
 }
 
 
+void ServerTCP::handleBid(std::string& additionalInfo){
+    //additionalInfo in the form UID password AID value
+
+    std::string uid, password, aid, value;
+
+    // parse additionalInfo
+
+    size_t splitIndex = additionalInfo.find(' ');
+
+    uid = additionalInfo.substr(0, splitIndex);
+    additionalInfo = additionalInfo.substr(splitIndex + 1);
+
+    splitIndex = additionalInfo.find(' ');
+
+    password = additionalInfo.substr(0, splitIndex);
+    additionalInfo = additionalInfo.substr(splitIndex + 1);
+
+    splitIndex = additionalInfo.find(' ');
+
+    aid = additionalInfo.substr(0, splitIndex);
+    additionalInfo = additionalInfo.substr(splitIndex + 1);
+
+    value = additionalInfo;
+   
+    // validate fields
+    if (!loginValid(uid, password) || !isAidValid(aid) || !isValueValid(value)) {
+        sendResponse("ERR\n");
+        return;
+    }
+    
+    // check if user uid and password match
+    if (!isValidPassword(uid, password)) {
+        sendResponse("ERR\n");
+        return;
+    }
+
+    
+    if (!isAuctionStillActive(aid)) {
+        sendResponse("RBD NOK\n"); // auction is not active
+        return;
+    }
+
+    if (!isUserLogged(uid)) {
+        sendResponse("RBD NLG\n"); // user is not logged in
+        return;
+    }
+
+    if (getAuctionHost(aid) == uid) {
+        sendResponse("RBD ILG\n"); // user is the host of the auction
+        return;
+    }
+    
+    // compare bid value with current value
+    int currentValue = getHighestBid(aid);
+
+    if (currentValue == -1) {
+        sendResponse("RBD ERR\n"); //TODO ERR or NOK?
+        return;
+    }
+    
+
+    int valueInt = std::stoi(value);
+    if (valueInt <= currentValue) {
+        sendResponse("RBD REF\n");
+        return;
+    }
+    
+    // bid is valid, update auction
+
+    if (!placeBid(aid, uid, value)) {
+        sendResponse("RBD ERR\n");
+        return;
+    }
+
+    sendResponse("RBD OK\n");
+
+    return;
+}
+
+
+
 // Auxiliary functions
 
 
@@ -303,7 +386,7 @@ int ServerTCP::validateOpenRequestInfo(OpenRequestInfo& openRequestInfo) {
 
     // validate remaining fields
     if (!isAuctionNameValid(openRequestInfo.name)) return 0;
-    if (!isStartValueValid(openRequestInfo.start_value)) return 0;
+    if (!isValueValid(openRequestInfo.start_value)) return 0;
     if (!isTimeActiveValid(openRequestInfo.timeactive)) return 0;
     if (!isFnameValid(openRequestInfo.fname)) return 0;
     if (!isFsizeValid(openRequestInfo.fsize)) return 0;

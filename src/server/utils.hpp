@@ -9,6 +9,8 @@
 #include <dirent.h>
 #include <iostream>
 #include <fstream>
+#include <vector>
+#include <algorithm>
 
 #include <filesystem>
 
@@ -35,6 +37,8 @@ int createUserDir(std::string& uid);
 int existsUserDir(std::string& uid);
 int createNewHost(std::string& uid, std::string& aid);
 int checkAuctionOwner(std::string& uid, std::string& aid);
+std::string getAuctionHost(std::string& aid);
+std::string getAuctionStartFullTime(std::string& aid);
 
 int createPassword(std::string& uid, std::string& password);
 int erasePassword(std::string& uid);
@@ -57,6 +61,9 @@ int closeActiveAuction(std::string& aid);
 
 int createAssetFile(std::string& aid, std::string& fname, std::string& fdata);
 int checkAssetFile(std::string& fname);
+
+int placeBid(std::string& aid, std::string& uid, std::string& value);
+int getHighestBid(std::string& aid);
 
 //int GetBidList(std::string& aid, BIDLIST *list);
 

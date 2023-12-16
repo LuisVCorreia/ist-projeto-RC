@@ -213,46 +213,35 @@ void ClientTCP::receiveOpenResponse() {
 }
 
 
-void ClientTCP::receiveShowAssetResponse() { //TODO receiving images not working
-    ssize_t n;
+void ClientTCP::receiveShowAssetResponse() {
     std::string response;
-    std::string response_code, status, fname, fsizeStr, fdata;
 
-   // receive response
-    std::cout << "Marker A\n" << std::endl;
-
+    // receive response
     if (!readTCPdata(response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
 
-    std::cout << "Marker B\n" << std::endl;
-    // parse received data
-    
     std::istringstream iss(response);
-    iss >> response_code >> status >> fname >> fsizeStr >> fdata;
-    
+    std::string response_code, status, fname, fsizeStr;
+    iss >> response_code >> status >> fname >> fsizeStr;
+
     std::cout << "File name: " << fname << std::endl;
     std::cout << "File size: " << fsizeStr << std::endl;
-    //TODO also show file directory (?)
 
-    // convert fsizeStr to integer
+    size_t metadata_end = iss.tellg();
+    metadata_end = response.find_first_not_of(" ", metadata_end); 
 
-    size_t fsize = std::stoul(fsizeStr);
+    if (metadata_end == std::string::npos || metadata_end >= response.size()) {
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
 
     // write file data
+    size_t fsize = std::stoul(fsizeStr);
+    std::string fdata = response.substr(metadata_end, fsize);
 
-    std::cout << "Marker C\n" << std::endl;
-
-    char fdata_char[fsize + 1];
-    std::copy(fdata.begin(), fdata.end(), fdata_char);
-    fdata_char[fsize] = '\0';
-
-    std::cout << "Marker D\n" << std::endl;
-
-    writeFileBinary(fname, fsize, fdata_char);
-
-    std::cout << "Marker E\n" << std::endl;
+    writeFileBinary(fname, fdata);
 }
 
 
@@ -344,7 +333,7 @@ int ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionIn
     auctionInfo.start_value = additionalInfo.substr(0, additionalInfo.find(' '));
     additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
 
-    if (!isStartValueValid(auctionInfo.start_value)) return false;
+    if (!isValueValid(auctionInfo.start_value)) return false;
 
     auctionInfo.timeactive = additionalInfo;
 

@@ -22,11 +22,11 @@ int loginValid(std::string& uid, std::string& password);
 int isAidValid(std::string& aid);
 int isFnameValid(std::string& fname);
 int isAuctionNameValid(std::string& aid);
-int isStartValueValid(std::string& value);
+int isValueValid(std::string& value);
 int isTimeActiveValid(std::string& timeactive);
 int isFsizeValid(std::string& fsize);
 
 std::string readFileBinary(const std::string& fname);
-int writeFileBinary(const std::string& fname, int fsize, const char* fdata);
+int writeFileBinary(const std::string& fname, const std::string& data);
 
 #endif

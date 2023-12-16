@@ -40,6 +40,7 @@ class ServerTCP {
         
         void handleOpen(std::string& additionalInfo);
         void handleClose(std::string& additionalInfo);
+        void handleBid(std::string& additionalInfo);
 
         int parseOpenRequestInfo(std::string& additionalInfo, OpenRequestInfo& openRequestInfo);
         int validateOpenRequestInfo(OpenRequestInfo& openRequestInfo);
