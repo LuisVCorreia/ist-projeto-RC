@@ -65,8 +65,16 @@ void ServerUDP::receiveRequest(){
         handleLogout(additionalInfo);
     else if (command == "UNR")
         handleUnregister(additionalInfo);
+    else if (command == "LST")
+        handleAllAuctions(additionalInfo);
+    else if (command == "LMA")
+        handleMyAuctions(additionalInfo);
+    else if (command == "LMB")
+        handleMyBids(additionalInfo);
+    // else if (command == "SRC")
+    //     handleShowRecord(additionalInfo);
     else
-        std::cout << "unknown command\n"; //TODO: fix this
+        sendResponse("ERR\n");
 
 }
 
@@ -190,11 +198,103 @@ void ServerUDP::handleUnregister(std::string& additionalInfo){
 }
 
 
+void ServerUDP::handleAllAuctions(std::string& additionalInfo){
+    if (!additionalInfo.empty()) {
+        sendResponse("RLS ERR\n");
+        return;
+    }
+
+    if (getNumAuctions() == 0) {
+        sendResponse("RLS NOK\n");
+        return;
+    }
+
+    std::string auctions = getAllAuctions();
+
+    if (auctions.empty()){
+        sendResponse("RLS ERR\n");
+        return;
+    }
+
+    sendResponse("RLS OK" + auctions + "\n");
+}
+
+
+
+void ServerUDP::handleMyAuctions(std::string& additionalInfo){
+    std::string uid = additionalInfo;
+
+    if (!existsUserDir(uid)) {
+        sendResponse("RMA ERR\n");
+        return;
+    }
+
+    if (!isUserLogged(uid)) {
+        sendResponse("RMA NLG\n");
+        return;
+    }
+
+    std::string auctions = getMyAuctions(uid);
+
+    if (auctions.empty()){
+        sendResponse("RMA NOK\n");
+        return;
+    }
+    sendResponse("RMA OK" + auctions + "\n");
+    
+}
+
+
+
+void ServerUDP::handleMyBids(std::string& additionalInfo){
+    std::string uid = additionalInfo;
+    
+    if (!existsUserDir(uid)) {
+        sendResponse("RMB ERR\n");
+        return;
+    }
+
+    if (!isUserLogged(uid)) {
+        sendResponse("RMB NLG\n");
+        return;
+    }
+
+    std::string auctions = getMyBids(uid);
+
+    if (auctions.empty()){
+        sendResponse("RMB NOK\n");
+        return;
+    }
+
+    sendResponse("RMB OK" + auctions + "\n");
+    
+}
+
+
+// void ServerUDP::handleShowRecord(std::string& additionalInfo) {
+
+//     // RRC status [host_UID auction_name asset_fname start_value start_date-time timeactive]
+//     // [ B bidder_UID bid_value bid_date-time bid_sec_time]*
+//     // [ E end_date-time end_sec_time]
+
+//     std::string aid = additionalInfo;
+
+//     AuctionGeneralInfo general = getAuctionGeneralInfo(aid);
+
+//     std::string response = "RMB OK ";
+
+//     response += host_UID + " " + auction_name + " " + asset_fname + " " +\
+//                 start_value + " " + start_datetime + " " + time_active;
+    
+//     return;
+// }
+
+
 // Auxiliary Functions
 
 
-int ServerUDP::sendResponse(const char* response) {
-    if (sendto(socketUDP, response, strlen(response), 0, (const struct sockaddr*)&client_addr, client_addrlen) < 0) {
+int ServerUDP::sendResponse(const std::string& response) {
+    if (sendto(socketUDP, response.c_str(), response.length(), 0, (const struct sockaddr*)&client_addr, client_addrlen) < 0) {
         std::cout << "WARNING: error sending UDP message\n";
         return 0;
     }

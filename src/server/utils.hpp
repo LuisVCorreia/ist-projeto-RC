@@ -20,19 +20,14 @@ namespace fs = std::filesystem;
 #define MAX_BIDS 50
 
 
-typedef struct {
-    char uid[7];
-    char value[7];
-    char datetime[20];
-    time_t sec_time;
-    
-} BID;
-
-typedef struct {
-    int no_bids;
-    BID bids[MAX_BIDS];
-
-} BIDLIST;
+// typedef struct {
+//     std::string host_uid;
+//     std::string auction_name;
+//     std::string asset_fname;
+//     std::string start_value;
+//     std::string start_datetime;
+//     std::string time_active;
+// } AuctionGeneralInfo;
 
 int createUserDir(std::string& uid);
 int existsUserDir(std::string& uid);
@@ -52,6 +47,8 @@ int logoutAllUsers();
 int isUserLogged(std::string& uid);
 
 int getNumAuctions();
+std::string getAllAuctions();
+std::string getMyAuctions(std::string& uid);
 int existsAuctionDir(std::string& aid);
 int createAuctionDir(std::string& aid);
 int createStartFile(std::string& aid, std::string& uid, std::string& name, std::string& fname,
@@ -62,8 +59,13 @@ int closeActiveAuction(std::string& aid);
 
 int createAssetFile(std::string& aid, std::string& fname, std::string& fdata);
 int getAssetFile(std::string& aid, std::string& fname, std::string& fsize, std::string& fdata);
+
+int createNewBidder(std::string& aid, std::string& uid);
 int placeBid(std::string& aid, std::string& uid, std::string& value);
 int getHighestBid(std::string& aid);
+std::string getMyBids(std::string& uid);
+
+// int getAuctionGeneralInfo(AuctionGeneralInfo& generalInfo);
 
 //int GetBidList(std::string& aid, BIDLIST *list);
 

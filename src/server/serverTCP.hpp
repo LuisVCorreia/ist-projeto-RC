@@ -46,7 +46,7 @@ class ServerTCP {
         int parseOpenRequestInfo(std::string& additionalInfo, OpenRequestInfo& openRequestInfo);
         int validateOpenRequestInfo(OpenRequestInfo& openRequestInfo);
 
-        int sendResponse(const char* response);
+        int sendResponse(const std::string& response);
 };
 
 #endif

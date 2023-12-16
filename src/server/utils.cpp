@@ -347,6 +347,63 @@ int getNumAuctions() {
     return numAuctions;
 }
 
+// returns a string of all auction in the format [ AID state]*
+std::string getAllAuctions(){
+    fs::path AUCTIONS_dir = fs::path("src/server/AUCTIONS");
+
+    if (!fs::exists(AUCTIONS_dir)) {
+        std::cerr << "Auctions directory not found" << std::endl;
+        return "";
+    }
+
+    std::string auctions = "";
+
+    try {
+        for (const auto& entry : fs::directory_iterator(AUCTIONS_dir)) {
+            if (fs::is_directory(entry)) {
+                std::string aid = entry.path().filename().string();
+                std::string state = isAuctionStillActive(aid) ? "1" : "0";
+                auctions += " " + aid + " " + state;
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return "";
+    }
+
+    return auctions;
+
+
+}
+
+std::string getMyAuctions(std::string& uid){
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path HOSTED_dir = USER_dir / "HOSTED";
+
+    if (!fs::exists(HOSTED_dir)) {
+        std::cerr << "Hosted directory not found" << std::endl;
+        return "";
+    }
+
+    std::string auctions = "";
+
+    try {
+        for (const auto& entry : fs::directory_iterator(HOSTED_dir)) {
+            if (fs::is_regular_file(entry)) {
+                std::string aid = entry.path().filename().string().substr(0, 3);
+                std::string state = isAuctionStillActive(aid) ? "1" : "0";
+                auctions += " " + aid + " " + state;
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return "";
+    }
+
+    return auctions;
+}
+
+
 
 int existsAuctionDir(std::string& aid) {
     if (aid.length() != 3)
@@ -613,6 +670,26 @@ int getAssetFile(std::string& aid, std::string& fname, std::string& fsize, std::
 
 // Bids
 
+int createNewBidder(std::string& aid, std::string& uid){
+    if (aid.length() != 3 || uid.length() != 6)
+        return 0;
+
+    fs::path USERS_dir = fs::path("src/server/USERS") / uid;
+    fs::path BIDDED_dir = USERS_dir / "BIDDED";
+    fs::path AID_file = BIDDED_dir / (aid + ".txt");
+
+    try {
+        if (!fs::exists(BIDDED_dir))
+            return 0;
+        std::ofstream ofs(AID_file);
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0;
+    }
+
+    return 1;
+}
+
 
 // create new bid file
 int placeBid(std::string& aid, std::string& uid, std::string& value){
@@ -713,35 +790,30 @@ int getHighestBid(std::string& aid){
 }
 
 
-// int getBidList(std::string&  aid, BIDLIST *list)
-// {
-//     struct dirent **filelist;
-//     int n_entries, n_bids, len;
-//     char dirname[20];
-//     char pathname[32];
+std::string getMyBids(std::string& uid){
+    fs::path USER_dir = fs::path("src/server/USERS") / uid;
+    fs::path BIDDED_dir = USER_dir / "BIDDED";
 
-//     sprintf(dirname, "AUCTIONS/%03d/BIDS/", aid);
-//     n_entries = scandir(dirname, &filelist, 0, alphasort);
-//     if (n_entries <= 0) // Could test for -1 since n_entries count always with . and ..
-//         return(0);
+    if (!fs::exists(BIDDED_dir)) {
+        std::cerr << "Bidded directory not found" << std::endl;
+        return "";
+    }
 
-//     n_bids=0;
-//     list->no_bids=0;
-//     while (n_entries--)
-//     {
-//         len=strlen(filelist[n_entries]->d_name);
-//         if(len==10) // Discard '.', '..', and invalid filenames by size
-//         {
-//             sprintf(pathname, "AUCTIONS/%03d/BIDS/%s", aid, filelist[n_entries]->d_name);
-//             if (LoadBid(pathname, list))
-//             {
-//                 ++n_bids;
-//             }
-//         }
-//         free(filelist[n_entries]);
-//         if(n_bids==50)
-//             break;
-//     }
-//     free(filelist);
-//     return(n_bids);
-// }
+    std::string bids = "";
+
+    try {
+        for (const auto& entry : fs::directory_iterator(BIDDED_dir)) {
+            if (fs::is_regular_file(entry)) {
+                std::string aid = entry.path().filename().string().substr(0, 3);
+                std::string state = isAuctionStillActive(aid) ? "1" : "0";
+                bids += " " + aid + " " + state;
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return "";
+    }
+
+    return bids;
+
+}

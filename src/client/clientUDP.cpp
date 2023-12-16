@@ -335,6 +335,7 @@ void ClientUDP::parseAuctionInfo(std::string info){
             std::cout << "Auction ID: " << aid << ", State: " << (state == '1' ? "Active" : "Inactive") << std::endl;
         } else { // FIXME do the same with parse record info?
             std::cout << "WARNING: unexpected protocol message\n";
+            return;
         }
 
         start = (end == std::string::npos) ? info.length() : end + 1;
@@ -479,7 +480,7 @@ void ClientUDP::validateUnregisterResponse(std::string response, std::string sta
 
 void ClientUDP::validateMyAuctionsResponse(std::string response_info){
     if (response_info == "NOK\n")
-        std::cout << "user has no ongoing auctions\n";
+        std::cout << "user has not started any auctions\n";
     else if (response_info == "NLG\n")
         std::cout << "user is not logged in\n";
     else

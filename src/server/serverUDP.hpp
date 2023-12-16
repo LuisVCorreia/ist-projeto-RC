@@ -26,11 +26,16 @@ class ServerUDP {
         socklen_t client_addrlen;
         struct sockaddr_in client_addr;
         int socketUDP;
+
         void handleLogin(std::string& additionalInfo);
         void handleLogout(std::string& additionalInfo);
         void handleUnregister(std::string& additionalInfo);
+        void handleAllAuctions(std::string& additionalInfo);
+        void handleMyAuctions(std::string& additionalInfo);
+        void handleMyBids(std::string& additionalInfo);
+        // void handleShowRecord(std::string& additionalInfo);
 
-        int sendResponse(const char* response);
+        int sendResponse(const std::string& response);
        
 };
 

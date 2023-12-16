@@ -174,7 +174,6 @@ void ClientTCP::receiveOpenResponse() {
     std::string response, response_code, status;
 
     if (!readTCPdata(response)) {
-std::cout << "problem reading response\n";
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }

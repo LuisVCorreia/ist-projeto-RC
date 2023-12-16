@@ -58,7 +58,7 @@ void ServerTCP::receiveRequest(int& as_socket){
         buffer[n] = '\0';
 
         // Append the received data to the string
-        request += buffer;
+        request.append(buffer, n);
 
         if (buffer[n-1] == '\n') break; // message complete
     }
@@ -149,9 +149,7 @@ void ServerTCP::handleOpen(std::string& additionalInfo) {
     std::ostringstream responseStream;
     responseStream << "ROA OK " << aid << "\n";
 
-    std::cout << responseStream.str() << std::endl;
-
-    sendResponse(responseStream.str().c_str());
+    sendResponse(responseStream.str());
 }
 
 
@@ -238,28 +236,7 @@ void ServerTCP::handleShowAsset(std::string& additionalInfo){
     // format is RSA status [Fname Fsize Fdata]
     responseStream << "RSA OK " << fname << " " << fsize << " " << fdata << "\n";
 
-    // std::string response = responseStream.str();
-    // std::istringstream iss(response);
-    // std::string response_code, status, fsizeStr;
-    // iss >> response_code >> status >> fname >> fsizeStr;
-
-    // size_t metadata_end = iss.tellg();
-    // metadata_end = response.find_first_not_of(" ", metadata_end); 
-
-    // if (metadata_end == std::string::npos || metadata_end >= response.size()) {
-    //     std::cout << "WARNING: unexpected protocol message\n";
-    //     return;
-    // }
-
-    // fsize = std::stoul(fsizeStr);
-    // fdata = response.substr(metadata_end, (size_t)fsize);
-
-    // writeFileBinary(fname, fdata);
-
-
-    std::cout << responseStream.str() << std::endl;
-
-    sendResponse(responseStream.str().c_str());
+    sendResponse(responseStream.str());
 
 }
 
@@ -331,7 +308,7 @@ void ServerTCP::handleBid(std::string& additionalInfo){
     
     // bid is valid, update auction
 
-    if (!placeBid(aid, uid, value)) {
+    if (!createNewBidder(aid, uid) || !placeBid(aid, uid, value)) {
         sendResponse("RBD ERR\n");
         return;
     }
@@ -344,8 +321,8 @@ void ServerTCP::handleBid(std::string& additionalInfo){
 // Auxiliary functions
 
 
-int ServerTCP::sendResponse(const char* response) {
-    if (write(socketTCP, response, strlen(response)) == -1) {
+int ServerTCP::sendResponse(const std::string& response) {
+    if (write(socketTCP, response.c_str(), response.length()) == -1) {
         std::cout << "WARNING: write error\n";
         return 1;
     }
