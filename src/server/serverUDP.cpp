@@ -1,6 +1,8 @@
 #include "serverUDP.hpp"
 
-ServerUDP::ServerUDP(const char* port, int& socketUDP) {
+ServerUDP::ServerUDP(const char* port, int& socketUDP, int verbose) {
+    this->verbose = verbose;
+
     struct addrinfo hints;
     struct addrinfo *res;
     memset(&hints, 0, sizeof(hints));
@@ -8,17 +10,21 @@ ServerUDP::ServerUDP(const char* port, int& socketUDP) {
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
 
-    if (getaddrinfo(NULL, port, &hints, &res) != 0)
-        exit(1); // TODO: Fix Error handling
+    if (getaddrinfo(NULL, port, &hints, &res) != 0) {
+        perror("getaddrinfo error TCP server");
+        exit(1);
+    }
 
     socketUDP = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (socketUDP == -1)
-        exit(1); // TODO: Fix Error handling
+    if (socketUDP == -1){
+        perror("socket error UDP server");
+        exit(1);
+    }
     this->socketUDP = socketUDP;
 
     if (bind(socketUDP, res->ai_addr, res->ai_addrlen) == -1) {
-        perror("Bind error UDP server");
-        exit(1); // TODO: Fix Error handling
+        perror("bind error UDP server");
+        exit(1);
     }
     freeaddrinfo(res);
 
@@ -38,12 +44,12 @@ void ServerUDP::handleUDP(){
 
 
 void ServerUDP::receiveRequest(){
-    char buffer[1024];
+    char buffer[SRC_MESSAGE_SIZE+1];
     client_addrlen = sizeof(client_addr);
     std::string request, command, additionalInfo;
 
     // Receive data from the UDP socket
-    ssize_t received_bytes = recvfrom(socketUDP, buffer, 1023, 0, (struct sockaddr*)&client_addr, &client_addrlen);
+    ssize_t received_bytes = recvfrom(socketUDP, buffer, SRC_MESSAGE_SIZE, 0, (struct sockaddr*)&client_addr, &client_addrlen);
     if (received_bytes < 0) {
         perror("Error receiving UDP data");
         return;
@@ -102,40 +108,54 @@ void ServerUDP::handleLogin(std::string& additionalInfo){
     
     uid = additionalInfo.substr(0, splitIndex);
     password = additionalInfo.substr(splitIndex + 1);
-    //TODO loginValid sounds like isValidPassword, maybe change names
-    if (!loginValid(uid, password)) { // validate uid and password
+    
+    if (!loginValidFormat(uid, password)) { // validate uid and password
         sendResponse("RLI ERR\n");
         return;
     }
 
+    commandMutex.lock();
+
     if (!existsUserDir(uid)){
-        if (!createUserDir(uid)) // create user directory
+        if (!createUserDir(uid)) { // create user directory
+            sendResponse("RLI ERR\n");
+            commandMutex.unlock();
             return;
+        }
     }
 
     if (isUserRegistered(uid)) {
         if (!isValidPassword(uid, password)) {
             sendResponse("RLI NOK\n"); // password is incorrect
+            commandMutex.unlock();
             return;
         }
 
         if (!createLogin(uid)){  // error message sent otherwise user never receives response
             sendResponse("RLI ERR\n"); 
+            commandMutex.unlock();
             return;
         }
+        commandMutex.unlock();
         
         // successfully logged in
-        sendResponse("RLI OK\n"); // TODO: check for error // do we need to since it returns anyway?
+        sendResponse("RLI OK\n");
     }
     else {
-        if (!createPassword(uid, password)) return;
-        if (!createLogin(uid)){
+        if (!createPassword(uid, password)){
             sendResponse("RLI ERR\n"); 
+            commandMutex.unlock();
             return;
         }
+        if (!createLogin(uid)){
+            sendResponse("RLI ERR\n"); 
+            commandMutex.unlock();
+            return;
+        }
+        commandMutex.unlock();
 
         // successfully registered user
-        sendResponse("RLI REG\n"); //TODO what if the user existed but had been unregistered?
+        sendResponse("RLI REG\n");
     }
 }
 
@@ -148,30 +168,40 @@ void ServerUDP::handleLogout(std::string& additionalInfo){
     uid = additionalInfo.substr(0, splitIndex);
     password = additionalInfo.substr(splitIndex + 1);
 
-    if (!loginValid(uid, password)) { // validate uid and password
+    if (!loginValidFormat(uid, password)) { // validate uid and password
         sendResponse("RLO ERR\n");
         return;
     }
 
+    commandMutex.lock();
+
     if (!isValidPassword(uid, password)) { // received password is incorrect
-        sendResponse("RLO NOK\n"); //TODO send NOK or ERR?
+        sendResponse("RLO ERR\n"); 
+        commandMutex.unlock();
         return;
     }
 
     if (!existsUserDir(uid)) { // user was not registered
         sendResponse("RLO UNR\n");
+        commandMutex.unlock();
         return;
     }
 
     if (!isUserLogged(uid)) {
-        sendResponse("RLO NOK\n"); //TODO send NOK or ERR?
+        sendResponse("RLO NOK\n"); 
+        commandMutex.unlock();
         return;
     }
  
-    if (!eraseLogin(uid)) return; // logout user
-    sendResponse("RLO OK\n"); //TODO check for error
+    if (!eraseLogin(uid)){
+        sendResponse("RLO ERR\n");
+        commandMutex.unlock();
+        return; 
+    }
 
-    return;    
+    commandMutex.unlock();
+    sendResponse("RLO OK\n");
+    
 }
 
 
@@ -183,31 +213,45 @@ void ServerUDP::handleUnregister(std::string& additionalInfo){
     uid = additionalInfo.substr(0, splitIndex);
     password = additionalInfo.substr(splitIndex + 1);
 
-    if (!loginValid(uid, password)) { // validate uid and password
+    if (!loginValidFormat(uid, password)) { // validate uid and password
         sendResponse("RUR ERR\n");
         return;
     }
 
+    commandMutex.lock();
+
     if (!isValidPassword(uid, password)) { // received password is incorrect
-        sendResponse("RUR NOK\n"); //TODO send NOK or ERR?
+        sendResponse("RUR NOK\n");
+        commandMutex.unlock();
         return;
     }
 
     if (!existsUserDir(uid)) { // user was not registered
         sendResponse("RUR UNR\n");
+        commandMutex.unlock();
         return;
     }
 
     if (!isUserLogged(uid)) { // user is not logged in
         sendResponse("RUR NOK\n");
+        commandMutex.unlock();
+        return;
+    }
+    
+    if (!eraseLogin(uid)) {
+        sendResponse("RLO ERR\n");
+        commandMutex.unlock();
+        return;
+    }
+    if (!erasePassword(uid)) {
+        sendResponse("RLO ERR\n");
+        commandMutex.unlock();
         return;
     }
 
-    if (!eraseLogin(uid)) return; // logout user
-    if (!erasePassword(uid)) return; // unregister user
-    sendResponse("RUR OK\n"); //TODO check for error
-
-    return;    
+    commandMutex.unlock();
+    sendResponse("RUR OK\n");
+    
 }
 
 
@@ -217,12 +261,17 @@ void ServerUDP::handleAllAuctions(std::string& additionalInfo){
         return;
     }
 
+    commandMutex.lock();
+
     if (getNumAuctions() == 0) {
         sendResponse("RLS NOK\n");
+        commandMutex.unlock();
         return;
     }
 
     std::string auctions = getAllAuctions();
+
+    commandMutex.unlock();
 
     if (auctions.empty()){
         sendResponse("RLS ERR\n");
@@ -237,22 +286,29 @@ void ServerUDP::handleAllAuctions(std::string& additionalInfo){
 void ServerUDP::handleMyAuctions(std::string& additionalInfo){
     std::string uid = additionalInfo;
 
+    commandMutex.lock();
+
     if (!existsUserDir(uid)) {
         sendResponse("RMA ERR\n");
+        commandMutex.unlock();
         return;
     }
 
     if (!isUserLogged(uid)) {
         sendResponse("RMA NLG\n");
+        commandMutex.unlock();
         return;
     }
 
     std::string auctions = getMyAuctions(uid);
 
+    commandMutex.unlock();
+
     if (auctions.empty()){
         sendResponse("RMA NOK\n");
         return;
     }
+
     sendResponse("RMA OK" + auctions + "\n");
     
 }
@@ -262,17 +318,23 @@ void ServerUDP::handleMyAuctions(std::string& additionalInfo){
 void ServerUDP::handleMyBids(std::string& additionalInfo){
     std::string uid = additionalInfo;
     
+    commandMutex.lock();
+
     if (!existsUserDir(uid)) {
         sendResponse("RMB ERR\n");
+        commandMutex.unlock();
         return;
     }
 
     if (!isUserLogged(uid)) {
         sendResponse("RMB NLG\n");
+        commandMutex.unlock();
         return;
     }
 
     std::string auctions = getMyBids(uid);
+
+    commandMutex.unlock();
 
     if (auctions.empty()){
         sendResponse("RMB NOK\n");
@@ -292,18 +354,42 @@ void ServerUDP::handleShowRecord(std::string& additionalInfo) {
 
     std::string aid = additionalInfo;
 
+    if (!isAidValid(aid)) {
+        sendResponse("RRC ERR\n");
+        return;
+    }
+
+    commandMutex.lock();
+
+    if (!existsAuctionDir(aid)) {
+        sendResponse("RRC NOK\n");
+        commandMutex.unlock();
+        return;
+    }
+
     AuctionGeneralInfo general;
     BidList bidList;
     AuctionEndInfo endInfo;
 
     int active = isAuctionStillActive(aid);
 
-    getAuctionGeneralInfo(aid, general);
+    if (!getAuctionGeneralInfo(aid, general)) {
+        sendResponse("RRC NOK\n");
+        commandMutex.unlock();
+        return;
+    };
 
     getBidList(aid, bidList);
     
-    if (!active)
-        getAuctionEndInfo(aid, endInfo);
+    if (!active) {
+        if (!getAuctionEndInfo(aid, endInfo)) {
+            sendResponse("RRC NOK\n");
+            commandMutex.unlock();
+            return;
+        }
+    }   
+
+    commandMutex.unlock();
 
     // write response
 
@@ -331,7 +417,6 @@ void ServerUDP::handleShowRecord(std::string& additionalInfo) {
 
     sendResponse(response.c_str());
 
-    return;
 }
 
 
@@ -343,8 +428,6 @@ int ServerUDP::sendResponse(const std::string& response) {
         std::cout << "WARNING: error sending UDP message\n";
         return 0;
     }
-
-    //closeUDPConn(socketUDP); we dont want to close the socket here
 
     return 1;
 }

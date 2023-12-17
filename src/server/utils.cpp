@@ -115,7 +115,7 @@ std::string getAuctionHost(std::string& aid){
         file >> uid;
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
-        return ""; //TODO check for this on server code
+        return "";
     }
     return uid;
 
@@ -207,7 +207,7 @@ int isUserRegistered(std::string& uid) {
     return 1;
 }
 
-// check that the password is correct
+// check that the user and password match
 int isValidPassword(std::string& uid, std::string& password){
     fs::path USER_dir = fs::path("src/server/USERS") / uid;
     fs::path PASSWORD_file = USER_dir / (uid + "_pass.txt");
@@ -473,9 +473,9 @@ int createStartFile(std::string& aid, std::string& uid, std::string& name, std::
     time_t now = time(0); // gets time in seconds since 1970
     tm* timeinfo = localtime(&now); // gets time in struct tm format
 
-    char buffer[80]; //TODO adjust size
+    char buffer[20];
     // converts to string in format YYYY-MM-DD HH:MM:SS
-    strftime(buffer,80,"%Y-%m-%d %H:%M:%S",timeinfo);
+    strftime(buffer,20,"%Y-%m-%d %H:%M:%S",timeinfo);
 
     std::string start_datetime(buffer); // in date format
     std::string start_fulltime = std::to_string(now); // in seconds
@@ -553,9 +553,9 @@ int isAuctionStillActive(std::string& aid){
         // end_datetime is the start time plus the time active
         time_t end_time_seconds = start_time_seconds + time_active_seconds;
         tm* end_timeinfo = localtime(&end_time_seconds);
-        // TODO: make this part a function since it is repeated in createStartFile
-        char end_buffer[80];
-        strftime(end_buffer, 80, "%Y-%m-%d %H:%M:%S", end_timeinfo);
+
+        char end_buffer[20];
+        strftime(end_buffer, 20, "%Y-%m-%d %H:%M:%S", end_timeinfo);
 
         std::string end_datetime(end_buffer);
         std::string end_sec_time = std::to_string(time_active_seconds);
@@ -602,8 +602,8 @@ int closeActiveAuction(std::string& aid){
     time_t now = time(0);
     tm* timeinfo = localtime(&now);
 
-    char buffer[80];
-    strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
+    char buffer[20];
+    strftime(buffer, 20, "%Y-%m-%d %H:%M:%S", timeinfo);
 
     std::string end_datetime(buffer);
     time_t start_time_seconds = std::stol(start_fulltime);
@@ -640,6 +640,11 @@ int getAssetFile(std::string& aid, std::string& fname, std::string& fsize, std::
 
     fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
     fs::path ASSET_dir = AUCTION_dir / "ASSET";
+
+    if (!fs::exists(ASSET_dir)) {
+        std::cerr << "Asset directory not found" << std::endl;
+        return 0;
+    }
 
     for (const auto& entry : fs::directory_iterator(ASSET_dir)) {
         if (fs::is_regular_file(entry)) {
@@ -710,9 +715,9 @@ int placeBid(std::string& aid, std::string& uid, std::string& value){
     time_t now = time(0); // gets time in seconds since 1970
     tm* timeinfo = localtime(&now); // gets time in struct tm format
 
-    char buffer[80]; //TODO adjust size
+    char buffer[20];
     // converts to string in format YYYY-MM-DD HH:MM:SS
-    strftime(buffer,80,"%Y-%m-%d %H:%M:%S",timeinfo);
+    strftime(buffer,20,"%Y-%m-%d %H:%M:%S",timeinfo);
 
     std::string bid_datetime(buffer); // in date format
     
@@ -841,7 +846,7 @@ int getAuctionGeneralInfo(std::string& aid, AuctionGeneralInfo& generalInfo){
         generalInfo.start_datetime = start_date + " " + start_time;
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
-        return 0; //TODO check for this on server code
+        return 0;
     }
     return 1;
 }
@@ -896,7 +901,7 @@ int loadBid(char *pathname, BidList& list, int n_bids){
         list.bids[n_bids].bid_datetime = bid_date + " " + bid_time;
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
-        return 0; //TODO check for this on server code
+        return 0;
     }
     
     return 1;
@@ -921,7 +926,7 @@ int getAuctionEndInfo(std::string& aid, AuctionEndInfo& endInfo){
         endInfo.end_datetime = end_date + " " + end_time;
     } catch (const fs::filesystem_error& e) {
         std::cerr << e.what() << std::endl;
-        return 0; //TODO check for this on server code
+        return 0;
     }
     return 1;
 }

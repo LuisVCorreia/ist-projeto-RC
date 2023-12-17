@@ -18,20 +18,21 @@
 #include <utils.hpp>
 #include <common/common.hpp>
 
+#define TCP_SERVER_TIMEOUT 5
 
 class ServerTCP {
     public:
-        ServerTCP(const char* port, int& socketTCP);
+        ServerTCP(const char* port, int& socketTCP, int verbose);
         ~ServerTCP();
         void handleTCP();
         void handleClient(int client_socket);
         int acceptClient();
-        std::mutex commandMutex;
         int auctionCounter;
 
     private:
         int socketTCP;
         struct addrinfo hints, *res;
+        int verbose;
         
         
         struct OpenRequestInfo {

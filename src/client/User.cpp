@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
     if (argc == 1) {
         // use default port and default asip
         port = DEFAULT_PORT;
-        asip = DEFAULT_ASIP; // TODO check this
+        asip = DEFAULT_ASIP;
     } else if (argc == 3 && strcmp(argv[1], "-n") == 0){
         // specify IP address of machine where AS runs
         port = DEFAULT_PORT;

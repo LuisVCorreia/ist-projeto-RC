@@ -15,22 +15,22 @@
 
 /*
 max size of SRC message is
-7 + 1 + (6 + 10 + 24 + 6 + 19 + 5 + 5 (spaces))
-+ (1 + 6 + 6 + 19 + 5 + 4(spaces)) * 50
-+ 1 + 19 + 5 + 3(spaces)
-= 2161 FIXME check this 
+3 + 2 + 2(spaces) + (6 + 10 + 24 + 6 + 19 + 5 + 5(spaces))
++ (1 + 6 + 6 + 19 + 5 + 5(spaces)) * 50
++ 1 + 19 + 5 + 3(spaces) + 1(newline)
+= 2211
 */
-#define SRC_MESSAGE_SIZE 2161 
-
+#define SRC_MESSAGE_SIZE 2211
+#define AUTH_MESSAGE_SIZE 20 // max size of LIN, LOU or UNR message is 3 + 1 + 6 + 1 + 8 + 1
 #define RLS_MESSAGE_SIZE 6002 // max size of RLS message is 7 + 6 * 999 + 1 =  6002
-#define OPA_MESSAGE_SIZE 78 // exluding fdata size
+#define OPA_MESSAGE_SIZE 78 // excluding fdata size
 
-void createTCPConn(int& fd, struct addrinfo *res);
-void closeTCPConn(int& fd);
-void createUDPConn(int& fd);
-void closeUDPConn(int& fd);
+int createTCPConn(int& fd, struct addrinfo *res);
+int closeTCPConn(int& fd);
+int createUDPConn(int& fd);
+int closeUDPConn(int& fd);
 
-int loginValid(std::string& uid, std::string& password);
+int loginValidFormat(std::string& uid, std::string& password);
 int isAidValid(std::string& aid);
 int isFnameValid(std::string& fname);
 int isAuctionNameValid(std::string& aid);

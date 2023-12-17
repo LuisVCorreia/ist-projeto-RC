@@ -1,33 +1,38 @@
 #include "common.hpp"
 
-
-void createUDPConn(int& fd) {
+int createUDPConn(int& fd) {
     fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd == -1) exit(1); //TODO remove all exits and handle errors
+    if (fd == -1) return 0;
+    return 1;
 }
 
-void closeUDPConn(int& fd) {
-    close(fd);
+int closeUDPConn(int& fd) {
+    if (close(fd) == -1) return 0;
+    return 1;
 }
 
-void createTCPConn(int& fd, struct addrinfo *res) {
+int createTCPConn(int& fd, struct addrinfo *res) {
     fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd == -1) exit(1); // TODO remove all exits and handle errors
+    if (fd == -1) return 0;
     
     int errcode = connect(fd, res->ai_addr, res->ai_addrlen);
-    if (errcode == -1) exit(1); //TODO remove all exits and handle errors
+    if (errcode == -1) return 0;
+
+    return 1;
 }
 
 
-void closeTCPConn(int& fd) {
-    close(fd);
+int closeTCPConn(int& fd) {
+    if (close(fd) == -1) return 0;
+    return 1;
 }
 
 
 
 // Validations
 
-int loginValid(std::string& uid, std::string& password) {
+// check if uid and password are both in a valid format
+int loginValidFormat(std::string& uid, std::string& password) {
     if (uid.length() == 6 && all_of(uid.begin(), uid.end(), ::isdigit)
         && password.length() == 8 && all_of(password.begin(), password.end(), ::isalnum)) {
         return 1;
@@ -35,11 +40,12 @@ int loginValid(std::string& uid, std::string& password) {
         return 0;
 }
 
+// check is aid is in a valid format
 int isAidValid(std::string& aid) {
-    return (aid.length() == 3 && std::all_of(aid.begin(), aid.end(), ::isdigit));
+    return (aid.length() == 3 && std::all_of(aid.begin(), aid.end(), ::isdigit) && aid != "000");
 }
 
-
+//check if filename is in a valid format
 int isFnameValid(std::string& fname) {
     // check fname is limited to a total of 24 alphanumerical characters 
     // (plus ‘-‘, ‘_’ and ‘.’), including the separating dot and the 3-letter extension: “nnn…nnnn.xxx”.
@@ -63,17 +69,22 @@ int isFnameValid(std::string& fname) {
     return 1;
 }
 
-
+// check if auction name is in a valid format
 int isAuctionNameValid(std::string& name) {
+
+    auto isValidChar = [](char c) { // lambda function
+            return std::isalnum(c) || c == '-';
+    };
+
     if (name.length() > 10 || name.length() == 0 ||
-        !std::all_of(name.begin(), name.end(), ::isalnum)) {
+        !std::all_of(name.begin(), name.end(), isValidChar)) {
         std::cout << "Invalid description name" << std::endl;
         return 0;
     }
     return 1;
 }
 
-
+// check if value is in a value format
 int isValueValid(std::string& value) {
     if (value.length() > 6 || 
         !std::all_of(value.begin(), value.end(), ::isdigit)) {
@@ -83,7 +94,7 @@ int isValueValid(std::string& value) {
     return 1;
 }
 
-
+// check if timeactive is in a valid format
 int isTimeActiveValid(std::string& timeactive) {
     // check timeactive is represented with up to 5 digits
     if (timeactive.length() > 5 || 
@@ -93,7 +104,7 @@ int isTimeActiveValid(std::string& timeactive) {
     }
     return 1;
 }
-
+// check if filesize is in a valid format
 int isFsizeValid(const std::string& fsize) {
     // check fsize is represented with up to 8 digits
     if (fsize.length() > 8 || 
@@ -108,7 +119,7 @@ int isFsizeValid(const std::string& fsize) {
 
 // Binary Files
 
-
+// read file in binary
 std::string readFileBinary(const std::string& fname) {
     std::ifstream file(fname, std::ios::binary);
     if (!file) {
@@ -124,7 +135,7 @@ std::string readFileBinary(const std::string& fname) {
     return oss.str();
 }
 
-
+// write file in binary
 int writeFileBinary(const std::string& fname, const std::string& data) {
     std::ofstream file(fname, std::ios::binary | std::ios::out);
     if (!file) {

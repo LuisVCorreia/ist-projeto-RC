@@ -50,10 +50,39 @@ void ClientTCP::handleOpen(std::string& additionalInfo, std::string& uid, std::s
     if (!isFsizeValid(fsizeStr)) return;
 
     // send request
-    if (!sendOpenRequest(uid, password, auctionInfo)) return;
+    if (!sendOpenRequest(uid, password, auctionInfo)){
+        if (!closeTCPConn(fd))
+            perror("Error closing socket");
+        return;
+    }
 
     // receive response
     receiveOpenResponse();
+}
+
+
+void ClientTCP::handleClose(const std::string& additionalInfo, const std::string& uid, const std::string& password) {
+    std::string aid = additionalInfo;
+
+    if (uid.empty()) {  //check if user is logged in
+        std::cout << "user not logged in" << std::endl;
+        return;
+    }
+
+    if (!isAidValid(aid)) {
+        std::cout << "Invalid AID format" << std::endl;
+        return;
+    }
+
+    // send request
+    if (!sendCloseRequest(uid, password, aid)){
+        if (!closeTCPConn(fd))
+            perror("Error closing socket");
+        return;
+    }
+
+    // receive response
+    receiveCloseResponse(uid, aid);
 }
 
 
@@ -65,7 +94,12 @@ void ClientTCP::handleShowAsset(const std::string& additionalInfo) {
         return;
     }
 
-    sendShowAssetRequest(additionalInfo);
+    if(!sendShowAssetRequest(aid)){
+        if (!closeTCPConn(fd))
+            perror("Error closing socket");
+        return;
+    }
+    
     receiveShowAssetResponse();
 }
 
@@ -84,36 +118,19 @@ void ClientTCP::handleBid(const std::string& additionalInfo, const std::string& 
         return;
     }
 
-    sendBidRequest(uid, password, aid, value);
+    if(!sendBidRequest(uid, password, aid, value)){
+        if (!closeTCPConn(fd))
+            perror("Error closing socket");
+        return;  
+    }
     receiveBidResponse();
-}
-
-
-void ClientTCP::handleClose(const std::string& additionalInfo, const std::string& uid, const std::string& password) {
-    std::string aid = additionalInfo;
-
-    if (uid.empty()) {  //check if user is logged in
-        std::cout << "user not logged in" << std::endl;
-        return;
-    }
-
-    if (!isAidValid(aid)) {
-        std::cout << "Invalid AID format" << std::endl;
-        return;
-    }
-
-    // send request
-    if (!sendCloseRequest(uid, password, aid)) return;
-
-    // receive response
-    receiveCloseResponse(uid, aid);
 }
 
 
 // Send Requests
 
 
-bool ClientTCP::sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo) {
+int ClientTCP::sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo) {
     std::ostringstream cmd;
     cmd << "OPA " << uid << " " << password << " " << auctionInfo.name << " "
         << auctionInfo.start_value << " " << auctionInfo.timeactive << " " 
@@ -121,47 +138,70 @@ bool ClientTCP::sendOpenRequest(std::string& uid, std::string& password, Auction
         << auctionInfo.fdata << "\n";
 
     std::string cmdStr = cmd.str(); 
+    ssize_t n, bytes_written = 0;
 
-    createTCPConn(fd, res);
-
-    // TODO: Loop needed for write?
-    ssize_t n = write(fd, cmdStr.c_str(), cmdStr.length()); // Write to the socket
-    if (n == -1) {
-        // Handle error
-        closeTCPConn(fd);
-        return false;
+    if (!createTCPConn(fd, res)){
+        perror("Error creating socket");
+        return 0;
     }
-    return true;
+    
+    while (bytes_written < cmdStr.length()) {
+        n = write(fd, cmdStr.c_str() + bytes_written, cmdStr.length() - bytes_written); 
+
+        if (n == -1) {
+            // Handle error
+            if (!closeTCPConn(fd))
+                perror("Error closing socket");
+            return 0;
+        }
+        bytes_written += n;
+    }
+
+    return 1;
 }
 
 
-bool ClientTCP::sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid) {
-    createTCPConn(fd, res);
+int ClientTCP::sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid) {
+    if (!createTCPConn(fd, res)){
+        perror("Error creating socket");
+        return 0;
+    }
 
     // send request
     
     ssize_t n = write(fd, ("CLS " + uid + " " + password + " " + aid + "\n").c_str(), 24); 
-    if(n==-1) return false;
-    return true;
+    if(n==-1) return 0;
+
+    return 1;
 }
 
 
-void ClientTCP::sendShowAssetRequest(const std::string& aid) {
-    createTCPConn(fd, res);
+int ClientTCP::sendShowAssetRequest(const std::string& aid) {
+    if (!createTCPConn(fd, res)){
+        perror("Error creating socket");
+        return 0;
+    }
 
     // send request
 
     ssize_t n = write(fd, ("SAS " + aid + "\n").c_str(), 8); 
-    if(n==-1)/*error*/exit(1);
+    if(n==-1) return 0;
+
+    return 1;
 }
 
 
-void ClientTCP::sendBidRequest(const std::string& uid, const std::string& password, const std::string aid , const std::string value) {
-    createTCPConn(fd, res);
+int ClientTCP::sendBidRequest(const std::string& uid, const std::string& password, const std::string aid , const std::string value) {
+    if (!createTCPConn(fd, res)){
+        perror("Error creating socket");
+        return 0;
+    }
 
     // send request
     ssize_t n = write(fd, ("BID " + uid + " " + password + " " + aid + " " + value + "\n").c_str(), 25+value.size()); 
-    if(n==-1)/*error*/exit(1);
+    if(n==-1) return 0;
+    
+    return 1;
 
 }
 
@@ -176,7 +216,10 @@ void ClientTCP::receiveOpenResponse() {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
-    closeTCPConn(fd);
+    if (!closeTCPConn(fd)){
+        perror("Error closing socket");
+        return;
+    }
 
     response_code = std::string(response).substr(0, 3);
 
@@ -217,7 +260,6 @@ void ClientTCP::receiveShowAssetResponse() {
     // receive response
     if (!readTCPdata(fd, response)) {
         std::cout << "WARNING: unexpected protocol message\n";
-        std::cout << "oh shit here we go again" << std::endl;
         return;
     }
 
@@ -275,7 +317,10 @@ void ClientTCP::receiveShowAssetResponse() {
         return;
     }
 
-    closeTCPConn(fd);
+    if (!closeTCPConn(fd)){
+        perror("Error closing socket");
+        return;
+    }
 
     std::cout << "File name: " << fname << std::endl;
     std::cout << "File size: " << fsize << std::endl;
@@ -294,13 +339,22 @@ void ClientTCP::receiveBidResponse() {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
-    closeTCPConn(fd);
+    if (!closeTCPConn(fd)){
+        perror("Error closing socket");
+        return;
+    }
 
     
     // parse received data
-    //TODO validate response
+    
+    if(response.back() != '\n') {
+        std::cout << "WARNING: unexpected protocol message\n";
+        return;
+    }
+    response.pop_back(); // remove final newline
+
     std::string response_code = std::string(response).substr(0, 3);
-    std::string status = std::string(response).substr(4, 3);
+    std::string status = std::string(response).substr(4);
 
     if (response_code != "RBD"){
         std::cout << "WARNING: unexpected protocol message\n";
@@ -323,14 +377,16 @@ void ClientTCP::receiveBidResponse() {
 }
 
 void ClientTCP::receiveCloseResponse(const std::string& uid, const std::string& aid) {
-    char buffer[9];
     std::string response, response_code, status;
 
     if (!readTCPdata(fd, response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
-    closeTCPConn(fd);
+    if (!closeTCPConn(fd)){
+        perror("Error closing socket");
+        return;
+    }
 
     response_code = std::string(response).substr(0, 3);
     status = std::string(response).substr(4);
@@ -354,7 +410,6 @@ void ClientTCP::receiveCloseResponse(const std::string& uid, const std::string& 
         std::cout << "auction " << aid << " owned by user " << uid << " has already finished\n";
     else 
         std::cout << "WARNING: unexpected protocol message\n";
-    
 }
 
 
@@ -365,27 +420,27 @@ int ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionIn
     auctionInfo.name = additionalInfo.substr(0, additionalInfo.find(' '));
     additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
 
-    if (!isAuctionNameValid(auctionInfo.name)) return false;
+    if (!isAuctionNameValid(auctionInfo.name)) return 0;
 
     auctionInfo.asset_fname = additionalInfo.substr(0, additionalInfo.find(' '));
     additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
 
-    if (!isFnameValid(auctionInfo.asset_fname)) return false;
+    if (!isFnameValid(auctionInfo.asset_fname)) return 0;
 
     auctionInfo.start_value = additionalInfo.substr(0, additionalInfo.find(' '));
     additionalInfo = additionalInfo.substr(additionalInfo.find(' ') + 1);
 
-    if (!isValueValid(auctionInfo.start_value)) return false;
+    if (!isValueValid(auctionInfo.start_value)) return 0;
 
     auctionInfo.timeactive = additionalInfo;
 
-    if (!isTimeActiveValid(auctionInfo.timeactive)) return false;
+    if (!isTimeActiveValid(auctionInfo.timeactive)) return 0;
 
-    return true;
+    return 1;
 }
 
 
-bool ClientTCP::readTCPdata(int& fd, std::string& response) {
+int ClientTCP::readTCPdata(int& fd, std::string& response) {
     char buffer[SRC_MESSAGE_SIZE];
     ssize_t n;
 
@@ -394,19 +449,19 @@ bool ClientTCP::readTCPdata(int& fd, std::string& response) {
         
     if (n == -1){
         perror("Error reading from socket");
-        return false; // error whilst reading
+        return 0; // error whilst reading
     }
 
     // check last character of response
     if (response.empty())
-        return false;
+        return 0;
     
-    return true;
+    return 1;
 }
 
 
 
-bool ClientTCP::readFData(int& fd, std::string& fsize, std::string& fdata) {
+int ClientTCP::readFData(int& fd, std::string& fsize, std::string& fdata) {
     char buffer[4096];
     ssize_t n;
     int bytes_to_read = std::stoi(fsize) - fdata.length();
@@ -419,14 +474,14 @@ bool ClientTCP::readFData(int& fd, std::string& fsize, std::string& fdata) {
 
     if (n == -1){
         perror("Error reading from socket");
-        return false; // error whilst reading
+        return 0; // error whilst reading
     }
 
     // check last character of response
     if (fdata.back() != '\n')
-        return false;
+        return 0;
 
     fdata.pop_back();
 
-    return true;
+    return 1;
 }

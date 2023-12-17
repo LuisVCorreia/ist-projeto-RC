@@ -30,8 +30,13 @@ void ClientUDP::handleLogin(const std::string& additionalInfo, std::string& uid,
     uid = additionalInfo.substr(0, splitIndex);
     password = additionalInfo.substr(splitIndex + 1);
 
-    if (loginValid(uid, password)) {  //check if credentials are valid
-        sendLoginRequest(uid, password);
+    if (loginValidFormat(uid, password)) {  //check if credentials are valid
+    
+        if(!sendLoginRequest(uid, password)){
+            if (!closeUDPConn)
+                perror("error closing socket");
+            return;
+        }
         receiveLoginResponse(uid, password);
     } else {
         std::cout << "invalid login format\n";
@@ -50,7 +55,11 @@ void ClientUDP::handleLogout(const std::string& additionalInfo, std::string& uid
         std::cout << "user not logged in\n";
         return;
     }
-    sendLogoutRequest(uid, password);
+    if(!sendLogoutRequest(uid, password)){
+        if (!closeUDPConn)
+            perror("error closing socket");
+        return;
+    }
     receiveLogoutResponse(uid, password);
 }
 
@@ -64,7 +73,12 @@ void ClientUDP::handleUnregister(const std::string& additionalInfo, std::string&
         std::cout << "user not logged in\n";
         return;
     }
-    sendUnregisterRequest(uid, password);
+
+    if(!sendUnregisterRequest(uid, password)){
+        if (!closeUDPConn)
+            perror("error closing socket");
+        return;
+    }
     receiveUnregisterResponse(uid, password);
 }
 
@@ -80,7 +94,12 @@ void ClientUDP::handleMyAuctions(const std::string&additionalInfo, std::string& 
         return;
     }
 
-    sendMyAuctionsRequest(uid);
+    if (!sendMyAuctionsRequest(uid)) {
+        if (!closeUDPConn(fd))
+            perror("Error closing socket");
+        return;
+    }
+    
     receiveMyAuctionsResponse();
 }
 
@@ -94,7 +113,13 @@ void ClientUDP::handleMyBids(const std::string& additionalInfo, std::string& uid
         std::cout << "user not logged in\n";
         return;
     }
-    sendMyBidsRequest(uid);
+    
+    if (!sendMyBidsRequest(uid)) {
+        if (!closeUDPConn(fd))
+            perror("Error closing socket");
+        return;
+    }
+    
     receiveMyBidsResponse();
 }
 
@@ -103,7 +128,13 @@ void ClientUDP::handleAllAuctions(const std::string& additionalInfo) {
         std::cout << "invalid unregister format\n";
         return;
     }
-    sendAllAuctionsRequest();
+
+    if (!sendAllAuctionsRequest()) {
+        if (!closeUDPConn(fd))
+            perror("Error closing socket");
+        return;
+    }
+    
     receiveAllAuctionsResponse();
 }
 
@@ -119,56 +150,90 @@ void ClientUDP::handleShowRecord(const std::string& additionalInfo, std::string&
         std::cout << "aid is not valid" << std::endl;
     }
 
-    sendShowRecordRequest(additionalInfo);
+    if (!sendShowRecordRequest(additionalInfo)) {
+        if (!closeUDPConn(fd))
+            perror("Error closing socket");
+        return;
+    }
+
     receiveShowRecordResponse();
 }
 
 //Send Requests
 
 
-void ClientUDP::sendLoginRequest(std::string& uid, std::string& password) {
-    createUDPConn(fd);
+int ClientUDP::sendLoginRequest(std::string& uid, std::string& password) {
+    if (!createUDPConn(fd)){
+        perror("Error creating socket");
+        return 0;
+    }
+
     if (sendto(fd, ("LIN " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
-        0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+        0, res->ai_addr, res->ai_addrlen) == -1) return 0;
+    return 1;
 }
 
-void ClientUDP::sendLogoutRequest(std::string& uid, std::string& password) {
-    createUDPConn(fd);
+int ClientUDP::sendLogoutRequest(std::string& uid, std::string& password) {
+    if (!createUDPConn(fd)){
+        perror("Error creating socket");
+        return 0;
+    }
     if (sendto(fd, ("LOU " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
-        0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+        0, res->ai_addr, res->ai_addrlen) == -1) return 0;
+    return 1;
 }
 
-void ClientUDP::sendUnregisterRequest(std::string& uid, std::string& password) {
-    createUDPConn(fd);
+int ClientUDP::sendUnregisterRequest(std::string& uid, std::string& password) {
+    if (!createUDPConn(fd)){
+        perror("Error creating socket");
+        return 0;
+    }
     if (sendto(fd, ("UNR " + uid + " " + password + "\n").c_str(), 6 + uid.length() + password.length(),
-        0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+        0, res->ai_addr, res->ai_addrlen) == -1) return 0;
+    return 1;
 }
 
-void ClientUDP::sendMyAuctionsRequest(std::string& uid) {
-    createUDPConn(fd);
-    if (sendto(fd, ("LMA " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+int ClientUDP::sendMyAuctionsRequest(std::string& uid) {
+    if (!createUDPConn(fd)){
+        perror("Error creating socket");
+        return 0;
+    }
+    if (sendto(fd, ("LMA " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) return 0;
+    return 1;
 }
 
-void ClientUDP::sendMyBidsRequest(std::string& uid) {
-    createUDPConn(fd);
-    if (sendto(fd, ("LMB " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+int ClientUDP::sendMyBidsRequest(std::string& uid) {
+    if (!createUDPConn(fd)){
+        perror("Error creating socket");
+        return 0;
+    }
+    if (sendto(fd, ("LMB " + uid + "\n").c_str(), 5 + uid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) return 0;
+    return 1;
 }
 
-void ClientUDP::sendAllAuctionsRequest() {
-    createUDPConn(fd);
-    if (sendto(fd, "LST\n", 4, 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+int ClientUDP::sendAllAuctionsRequest() {
+    if (!createUDPConn(fd)){
+        perror("Error creating socket");
+        return 0;
+    }
+    if (sendto(fd, "LST\n", 4, 0, res->ai_addr, res->ai_addrlen) == -1) return 0;
+    return 1;
 }
 
-void ClientUDP::sendShowRecordRequest(const std::string& aid){
-    createUDPConn(fd);
-  if (sendto(fd, ("SRC " + aid + "\n").c_str(), 5 + aid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) exit(1);
+int ClientUDP::sendShowRecordRequest(const std::string& aid){
+    if (!createUDPConn(fd)){
+        perror("Error creating socket");
+        return 0;
+    }
+    if (sendto(fd, ("SRC " + aid + "\n").c_str(), 5 + aid.length(), 0, res->ai_addr, res->ai_addrlen) == -1) return 0;
+    return 1;
 }
 
 
 //Receive Responses
 
 
-void ClientUDP::receiveLoginResponse(std::string& uid, std::string& password){ //FIXME this and logout don't need password
+void ClientUDP::receiveLoginResponse(std::string& uid, std::string& password){
     receiveAuthResponse("RLI", uid, password);
 }
 
@@ -197,8 +262,11 @@ void ClientUDP::receiveShowRecordResponse(){
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
 
-    ssize_t n = recvfrom(fd, buffer, 2161, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1); // TODO remove all exits and handle errors
+    ssize_t n = recvfrom(fd, buffer, SRC_MESSAGE_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
+    if (n == -1) {
+        perror("error reading from socket");
+        return;
+    }
 
     closeUDPConn(fd);
 
@@ -232,12 +300,15 @@ void ClientUDP::receiveShowRecordResponse(){
 
 
 void ClientUDP::receiveAuthResponse(std::string responseType, std::string& uid, std::string& password){
-    char buffer[128];
+    char buffer[AUTH_MESSAGE_SIZE+1];
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
 
-    ssize_t n = recvfrom(fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1);
+    ssize_t n = recvfrom(fd, buffer, AUTH_MESSAGE_SIZE, 0, (struct sockaddr*)&addr, &addrlen);
+    if (n == -1) {
+        perror("Error reading from socket");
+        return;
+    }
 
     closeUDPConn(fd);
 
@@ -264,7 +335,10 @@ void ClientUDP::receiveListResponse(std::string responseType){
     socklen_t addrlen = sizeof(addr);
 
     ssize_t n = recvfrom(fd, buffer, 6002, 0, (struct sockaddr*)&addr, &addrlen);
-    if (n == -1) exit(1);   // TODO remove all exits and handle errors
+    if (n == -1) {
+        perror("Error reading from socket");
+        return;
+    }
 
     closeUDPConn(fd);
 
@@ -314,20 +388,17 @@ void ClientUDP::parseAuctionInfo(std::string info){
 
     size_t start = 0;
     size_t end = info.find(' ', start + 4);
+    std::string aid;
 
     while (start != info.length()) {
         std::string segment = (end == std::string::npos) ? info.substr(start) : info.substr(start, end - start);
-
-        if (segment.length() == 5 && 
-            isdigit(segment[0]) && isdigit(segment[1]) && isdigit(segment[2]) &&
-            segment[3] == ' ' && 
-            (segment[4] == '0' || segment[4] == '1')) {
-
-            std::string aid = segment.substr(0, 3);
-            char state = segment[4];
+        aid = segment.substr(0, 3);
+        char state = segment[4];
+        if (segment.length() == 5 && isAidValid(aid) && segment[3] == ' ' && 
+            (state == '0' || state == '1')) {
 
             std::cout << "Auction ID: " << aid << ", State: " << (state == '1' ? "Active" : "Inactive") << std::endl;
-        } else { // FIXME do the same with parse record info?
+        } else {
             std::cout << "WARNING: unexpected protocol message\n";
             return;
         }
@@ -342,16 +413,17 @@ void ClientUDP::parseRecordInfo(std::string info){
     // [host_UID auction_name asset_fname start_value start_date-time timeactive]
     // [ B bidder_UID bid_value bid_date-time bid_sec_time]*
     // [ E end_date-time end_sec_time]
+    
     if (info.empty() || info.back() != '\n') {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
 
-    info.pop_back();    // remove newline at the end of the string
+    info.pop_back(); // remove newline at the end of the string
 
     size_t start = 0;
     size_t end;
-    //FIXME check if there is no double spaces between fields
+
     // parse [host_UID auction_name asset_fname start_value start_date-time timeactive]
 
     std::cout << "RECORD INFO\n" << std::endl;
@@ -406,8 +478,6 @@ void ClientUDP::parseRecordInfo(std::string info){
 
 void ClientUDP::validateLoginResponse(std::string response, std::string status, std::string& uid, std::string& password){
     if (response != "RLI"){
-        //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas. error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
@@ -422,14 +492,11 @@ void ClientUDP::validateLoginResponse(std::string response, std::string status, 
         password = "";
     }
     else 
-        //TODO: error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
 }
 
 void ClientUDP::validateLogoutResponse(std::string response, std::string status, std::string& uid, std::string& password){
     if (response != "RLO"){
-        //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas. error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
@@ -444,7 +511,6 @@ void ClientUDP::validateLogoutResponse(std::string response, std::string status,
     else if (status == "UNR\n")
         std::cout << "incorrect logout attempt: user is not registered" << std::endl;
     else 
-        //TODO: error message sufficient?
         std::cout << "WARNING: unexpected protocol message" << std::endl;
 }
 
@@ -452,8 +518,6 @@ void ClientUDP::validateLogoutResponse(std::string response, std::string status,
 
 void ClientUDP::validateUnregisterResponse(std::string response, std::string status, std::string& uid, std::string& password){
     if (response != "RUR"){
-        //TODO: se as mensagens não estiverem bem formatadas, ou não corresponderem a 
-        // mensagens deste protocolo, então devem ser rejeitadas.error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
@@ -468,7 +532,6 @@ void ClientUDP::validateUnregisterResponse(std::string response, std::string sta
     else if (status == "UNR\n")
         std::cout << "incorrect unregister attempt: user is not registered\n";
     else 
-        //TODO: error message sufficient?
         std::cout << "WARNING: unexpected protocol message\n";
 }
 

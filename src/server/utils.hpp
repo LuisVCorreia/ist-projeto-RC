@@ -11,6 +11,7 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>
+#include <mutex>
 
 #include <filesystem>
 #include <common/common.hpp>
@@ -18,6 +19,8 @@
 namespace fs = std::filesystem;
 
 #define MAX_BIDS 50
+
+extern std::mutex commandMutex;
 
 typedef struct {
     std::string host_uid;

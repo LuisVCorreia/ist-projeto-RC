@@ -12,7 +12,7 @@ void sigintHandler(int signum) {
 }
 
 int main(int argc, char *argv[]) {
-    bool verbose = false;
+    int verbose = false;
     const char* port;
     if (argc == 1) {
         // use default port 
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     memset(&act,0,sizeof act);
     act.sa_handler=SIG_IGN;
 
-    AS as(port);
+    AS as(port, verbose);
     globalASInstance = &as;
 
     memset(&act, 0, sizeof(act));

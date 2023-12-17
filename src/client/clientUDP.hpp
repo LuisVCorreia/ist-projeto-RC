@@ -31,7 +31,7 @@ class ClientUDP {
         void handleAllAuctions(const std::string&additionalInfo);
         void handleShowRecord(const std::string&additionalInfo, std::string& uid);
 
-        void sendLogoutRequest(std::string& uid, std::string& password);
+        int sendLogoutRequest(std::string& uid, std::string& password);
         void receiveLogoutResponse(std::string& uid, std::string& password);
 
     private:
@@ -39,19 +39,20 @@ class ClientUDP {
         struct addrinfo *res;
         const char* asip;
         
-        void sendLoginRequest(std::string& uid, std::string& password);
-        void receiveLoginResponse(std::string& uid, std::string& password);
+        int sendLoginRequest(std::string& uid, std::string& password);
+        int sendUnregisterRequest(std::string& uid, std::string& password);
+        int sendMyAuctionsRequest(std::string& uid);
+        int sendMyBidsRequest(std::string& uid);
+        int sendAllAuctionsRequest();
+        int sendShowRecordRequest(const std::string& aid);
+
         void receiveAuthResponse(std::string requestType, std::string& uid, std::string& password);
-        void sendUnregisterRequest(std::string& uid, std::string& password);
+        void receiveLoginResponse(std::string& uid, std::string& password);
         void receiveUnregisterResponse(std::string& uid, std::string& password);
-        void sendMyAuctionsRequest(std::string& uid);
         void receiveMyAuctionsResponse();
-        void sendMyBidsRequest(std::string& uid);
         void receiveMyBidsResponse();
-        void sendAllAuctionsRequest();
         void receiveAllAuctionsResponse();
         void receiveListResponse(std::string responseType);
-        void sendShowRecordRequest(const std::string& aid);
         void receiveShowRecordResponse();
 
         void validateLogoutResponse(std::string response, std::string status, std::string& uid, std::string& password);

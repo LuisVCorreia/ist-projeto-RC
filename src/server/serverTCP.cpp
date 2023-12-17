@@ -1,30 +1,37 @@
 #include "serverTCP.hpp"
 
-ServerTCP::ServerTCP(const char* port, int& socketTCP) {
-    // Create the TCP socket
+std::mutex commandMutex;
 
+ServerTCP::ServerTCP(const char* port, int& socketTCP, int verbose) {
+    this->verbose = verbose;
+
+    // Create the TCP socket
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
 
-    if (getaddrinfo(NULL, port, &hints, &res) != 0)
-        exit(1); // TODO: Fix Error handling
+    if (getaddrinfo(NULL, port, &hints, &res) != 0) {
+        perror("getaddrinfo error TCP server");
+        exit(1);
+    }
 
     socketTCP = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (socketTCP == -1)
-        exit(1); // TODO: Fix Error handling
+    if (socketTCP == -1) {
+        perror("socket error TCP server");
+        exit(1); 
+    }
 
     this->socketTCP = socketTCP;
 
     if (bind(socketTCP, res->ai_addr, res->ai_addrlen) == -1) {
-        perror("Bind error TCP server");
-        exit(1); // TODO: Fix Error handling
+        perror("bind error TCP server");
+        exit(1);
     }
 
     if (listen(socketTCP, 5) == -1) {  
-        perror("Listen error TCP server");
-        exit(1); // TODO: Fix Error handling
+        perror("listen error TCP server");
+        exit(1);
     }
     freeaddrinfo(res);
 
@@ -69,7 +76,7 @@ void ServerTCP::handleClient(int client_socket) {
 
     // set timeout for client socket
     struct timeval tv;
-    tv.tv_sec = 5; // TODO: check this?
+    tv.tv_sec = TCP_SERVER_TIMEOUT;
     tv.tv_usec = 0;
     setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
@@ -195,7 +202,7 @@ void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
 
     aid = additionalInfo;
 
-    if (!loginValid(uid, password) || !isAidValid(aid)) {
+    if (!loginValidFormat(uid, password) || !isAidValid(aid)) {
         sendResponse("ERR\n", client_socket);
         return;
     }
@@ -261,13 +268,19 @@ void ServerTCP::handleShowAsset(std::string& additionalInfo, int client_socket){
     std::string aid = additionalInfo;
 
     if (!isAidValid(aid)) {
-        sendResponse("ERR\n", client_socket);
+        sendResponse("RSA NOK\n", client_socket);
         return;
     }
 
     std::string fname, fsize, fdata;
 
     commandMutex.lock();
+
+    if (!existsAuctionDir(aid)) {
+        sendResponse("RSA NOK\n", client_socket);
+        commandMutex.unlock();
+        return;
+    }
 
     if (!getAssetFile(aid, fname, fsize, fdata)) {
         sendResponse("RSA NOK\n", client_socket);
@@ -279,10 +292,21 @@ void ServerTCP::handleShowAsset(std::string& additionalInfo, int client_socket){
 
     // send response
     std::ostringstream responseStream;
-    // format is RSA status [Fname Fsize Fdata]
     responseStream << "RSA OK " << fname << " " << fsize << " " << fdata << "\n";
 
-    sendResponse(responseStream.str(), client_socket);
+    std::string response = responseStream.str();
+    ssize_t n, bytes_written = 0;
+    
+    while (bytes_written < response.length()) {
+        n = write(client_socket, response.c_str() + bytes_written, response.length() - bytes_written); 
+
+        if (n == -1) {
+            std::cout << "WARNING: write error\n";
+            return;
+        }
+        bytes_written += n;
+    }
+
 
 }
 
@@ -291,7 +315,7 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form UID password AID value
 
     if (additionalInfo.back() != '\n') {
-        sendResponse("ERR\n", client_socket); // missing final newline
+        sendResponse("RBD ERR\n", client_socket); // missing final newline
         return;
     }
     
@@ -319,15 +343,15 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
     value = additionalInfo;
    
     // validate fields
-    if (!loginValid(uid, password) || !isAidValid(aid) || !isValueValid(value)) {
-        sendResponse("ERR\n", client_socket);
+    if (!loginValidFormat(uid, password) || !isAidValid(aid) || !isValueValid(value)) {
+        sendResponse("RBD ERR\n", client_socket);
         return;
     }
     
     commandMutex.lock();
     // check if user uid and password match
     if (!isValidPassword(uid, password)) {
-        sendResponse("ERR\n", client_socket);
+        sendResponse("RBD ERR\n", client_socket);
         return;
     }
     
@@ -343,7 +367,14 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
         return;
     }
 
-    if (getAuctionHost(aid) == uid) {
+    std::string auctionHost;
+    if ((auctionHost = getAuctionHost(aid)) == "") {
+        sendResponse("RBD ERR\n", client_socket);
+        commandMutex.unlock();
+        return;
+    }
+
+    if (auctionHost == uid) {
         sendResponse("RBD ILG\n", client_socket); // user is the host of the auction
         commandMutex.unlock();
         return;
@@ -353,7 +384,7 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
     int currentValue = getHighestBid(aid);
 
     if (currentValue == -1) {
-        sendResponse("RBD ERR\n", client_socket); //TODO ERR or NOK?
+        sendResponse("RBD ERR\n", client_socket);
         commandMutex.unlock();
         return;
     }
@@ -460,7 +491,7 @@ int ServerTCP::parseOpenRequestInfo(std::string& additionalInfo, OpenRequestInfo
 
 int ServerTCP::validateOpenRequestInfo(OpenRequestInfo& openRequestInfo) {
     // validate uid and password
-    if (!loginValid(openRequestInfo.uid, openRequestInfo.password)) return 0;
+    if (!loginValidFormat(openRequestInfo.uid, openRequestInfo.password)) return 0;
 
     // check if user uid and password match
     if (!isValidPassword(openRequestInfo.uid, openRequestInfo.password)) return 0;
@@ -471,8 +502,6 @@ int ServerTCP::validateOpenRequestInfo(OpenRequestInfo& openRequestInfo) {
     if (!isTimeActiveValid(openRequestInfo.timeactive)) return 0;
     if (!isFnameValid(openRequestInfo.fname)) return 0;
     if (!isFsizeValid((const std::string)openRequestInfo.fsize)) return 0;
-
-    //TODO should we validate if fdata is right size? fsize refers to bytes, not string length
 
     return 1;
 }
@@ -491,7 +520,9 @@ bool ServerTCP::readFData(int& fd, OpenRequestInfo& openRequestInfo) {
     }
 
     if (n == -1){
-        perror("Error reading from socket");
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
+            perror("Error reading from socket");
+        
         return false; // error whilst reading
     }
 

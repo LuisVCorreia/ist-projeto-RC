@@ -44,10 +44,10 @@ class ClientTCP {
             std::string fdata; 
         };
 
-        bool sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo);
-        bool sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid);
-        void sendShowAssetRequest(const std::string& aid);
-        void sendBidRequest(const std::string& uid, const std::string& password, const std::string aid , const std::string value);
+        int sendOpenRequest(std::string& uid, std::string& password, AuctionInfo& auctionInfo);
+        int sendCloseRequest(const std::string& uid, const std::string& password, const std::string& aid);
+        int sendShowAssetRequest(const std::string& aid);
+        int sendBidRequest(const std::string& uid, const std::string& password, const std::string aid , const std::string value);
         
         void receiveOpenResponse();
         void receiveCloseResponse(const std::string& uid, const std::string& aid);
@@ -56,8 +56,8 @@ class ClientTCP {
 
         int parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
 
-        bool readTCPdata(int& fd, std::string& response);
-        bool readFData(int& fd, std::string& fsize, std::string& fdata);
+        int readTCPdata(int& fd, std::string& response);
+        int readFData(int& fd, std::string& fsize, std::string& fdata);
         
 };
 

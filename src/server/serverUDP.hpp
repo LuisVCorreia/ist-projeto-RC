@@ -19,7 +19,7 @@
 
 class ServerUDP {
     public:
-        ServerUDP(const char* port, int& socketUDP);
+        ServerUDP(const char* port, int& socketUDP, int verbose);
         ~ServerUDP();
         void handleUDP();
         void receiveRequest();
@@ -29,6 +29,7 @@ class ServerUDP {
         socklen_t client_addrlen;
         struct sockaddr_in client_addr;
         int socketUDP;
+        int verbose;
 
         void handleLogin(std::string& additionalInfo);
         void handleLogout(std::string& additionalInfo);
