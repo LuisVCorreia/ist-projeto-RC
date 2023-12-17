@@ -24,33 +24,33 @@ void closeTCPConn(int& fd) {
 }
 
 
-bool readTCPdata(int& fd, std::string& response) {
-    char buffer[1024];
-    ssize_t n;
+// bool readTCPdata(int& fd, std::string& response) {
+//     char buffer[1024];
+//     ssize_t n;
 
-    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {     
-        // Null-terminate the received data
-        buffer[n] = '\0';
+//     while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {     
+//         // Null-terminate the received data
+//         buffer[n] = '\0';
 
-        // Append the received data to the string
-        response.append(buffer, n);
+//         // Append the received data to the string
+//         response.append(buffer, n);
 
-        if (response.back() == '\n') {
-            break;
-        }
-    }
+//         if (response.back() == '\n') {
+//             break;
+//         }
+//     }
         
-    if (n == -1){
-        perror("Error reading from socket");
-        return false; // error whilst reading
-}
+//     if (n == -1){
+//         perror("Error reading from socket");
+//         return false; // error whilst reading
+// }
 
-    //check last character of response
-    if (response.empty() || response.back() != '\n')
-        return false;
+//     //check last character of response
+//     if (response.empty() || response.back() != '\n')
+//         return false;
     
-    return true;
-}
+//     return true;
+// }
 
 
 // Validations

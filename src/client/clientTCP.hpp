@@ -55,6 +55,8 @@ class ClientTCP {
         void receiveBidResponse();
 
         int parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionInfo);
+
+        bool readTCPdata(int& fd, std::string& response);
         
 };
 

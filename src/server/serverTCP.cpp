@@ -76,10 +76,6 @@ void ServerTCP::handleClient(int client_socket) {
     // receive data from the client socket
     readTCPdata(client_socket, request);
 
-    if (!request.empty()) {
-        request.pop_back();
-    }
-
     // handle request
     size_t splitIndex = request.find(' ');
 
@@ -113,14 +109,22 @@ void ServerTCP::handleOpen(std::string& additionalInfo, int client_socket) {
 
     // parse and validate info
     if (!parseOpenRequestInfo(additionalInfo, openRequestInfo)) {
-        sendResponse("ERR\n", client_socket);
+        sendResponse("ROA ERR\n", client_socket);
         return;
     }
+
+
+    if (!readFData(client_socket, openRequestInfo)) {
+        sendResponse("ROA ERR\n", client_socket);
+        return;
+    }
+
     std::string aid;
     
     commandMutex.lock();
     if (!isUserLogged(openRequestInfo.uid)) {
         sendResponse("ROA NLG\n", client_socket); // user is not logged in
+        commandMutex.unlock();
         return;
     }
     
@@ -128,6 +132,7 @@ void ServerTCP::handleOpen(std::string& additionalInfo, int client_socket) {
 
     if (auctionCounter == 999) { // max number of auctions reached
         sendResponse("ROA NOK\n", client_socket);
+        commandMutex.unlock();
         return;
     }
     auctionCounter++;
@@ -139,18 +144,21 @@ void ServerTCP::handleOpen(std::string& additionalInfo, int client_socket) {
     if (!createAuctionDir(aid) || !createNewHost(openRequestInfo.uid, aid)) {
         sendResponse("ROA NOK\n", client_socket);
         auctionCounter--;
+        commandMutex.unlock();
         return;
     }
 
     if (!createStartFile(aid, openRequestInfo.uid, openRequestInfo.name, openRequestInfo.fname, openRequestInfo.start_value, openRequestInfo.timeactive)) {
         sendResponse("ROA NOK\n", client_socket);
         auctionCounter--;
+        commandMutex.unlock();
         return;
     }
 
     if (!createAssetFile(aid, openRequestInfo.fname, openRequestInfo.fdata)) {
         sendResponse("ROA NOK\n", client_socket);
         auctionCounter--;
+        commandMutex.unlock();
         return;
     }
     commandMutex.unlock();
@@ -167,6 +175,8 @@ void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form UID password AID
 
     std::string uid, password, aid;
+
+    additionalInfo.pop_back(); // remove final newline
 
     size_t splitIndex = additionalInfo.find(' ');
 
@@ -190,12 +200,14 @@ void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
     // check if user is logged in and if password is correct
     if (!existsUserDir(uid) || !isValidPassword(uid, password)) {
         sendResponse("RCL NOK\n", client_socket);
+        commandMutex.unlock();
         return;
     }
 
     // check if user is logged in
     if (!isUserLogged(uid)) {
         sendResponse("RCL NLG\n", client_socket);
+        commandMutex.unlock();
         return;
     }
 
@@ -203,18 +215,21 @@ void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
     // check if auction exists
     if (!existsAuctionDir(aid)) {
         sendResponse("RCL EAU\n", client_socket);
+        commandMutex.unlock();
         return;
     }
 
     // check if auction is owned by user
     if (!checkAuctionOwner(uid, aid)) { 
         sendResponse("RCL EOW\n", client_socket);
+        commandMutex.unlock();
         return;
     }
 
     // check if auction is still active
     if (!isAuctionStillActive(aid)) {
         sendResponse("RCL END\n", client_socket);
+        commandMutex.unlock();
         return;
     }
 
@@ -231,7 +246,10 @@ void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
 void ServerTCP::handleShowAsset(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form AID
 
+    additionalInfo.pop_back(); // remove final newline
+
     std::string aid = additionalInfo;
+
 
     if (!isAidValid(aid)) {
         sendResponse("ERR\n", client_socket);
@@ -244,6 +262,7 @@ void ServerTCP::handleShowAsset(std::string& additionalInfo, int client_socket){
 
     if (!getAssetFile(aid, fname, fsize, fdata)) {
         sendResponse("RSA NOK\n", client_socket);
+        commandMutex.unlock();
         return;
     }
 
@@ -263,6 +282,8 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form UID password AID value
 
     std::string uid, password, aid, value;
+
+    additionalInfo.pop_back(); // remove final newline
 
     // parse additionalInfo
 
@@ -298,16 +319,19 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
     
     if (!isAuctionStillActive(aid)) {
         sendResponse("RBD NOK\n", client_socket); // auction is not active
+        commandMutex.unlock();
         return;
     }
 
     if (!isUserLogged(uid)) {
         sendResponse("RBD NLG\n", client_socket); // user is not logged in
+        commandMutex.unlock();
         return;
     }
 
     if (getAuctionHost(aid) == uid) {
         sendResponse("RBD ILG\n", client_socket); // user is the host of the auction
+        commandMutex.unlock();
         return;
     }
     
@@ -316,12 +340,14 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
 
     if (currentValue == -1) {
         sendResponse("RBD ERR\n", client_socket); //TODO ERR or NOK?
+        commandMutex.unlock();
         return;
     }
     
     int valueInt = std::stoi(value);
     if (valueInt <= currentValue) {
         sendResponse("RBD REF\n", client_socket);
+        commandMutex.unlock();
         return;
     }
     
@@ -329,6 +355,7 @@ void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
 
     if (!createNewBidder(aid, uid) || !placeBid(aid, uid, value)) {
         sendResponse("RBD ERR\n", client_socket);
+        commandMutex.unlock();
         return;
     }
     
@@ -434,4 +461,51 @@ int ServerTCP::validateOpenRequestInfo(OpenRequestInfo& openRequestInfo) {
     //TODO should we validate if fdata is right size? fsize refers to bytes, not string length
 
     return 1;
+}
+
+
+
+bool ServerTCP::readFData(int& fd, OpenRequestInfo& openRequestInfo) {
+    char buffer[4096];
+    ssize_t n;
+    int bytes_to_read = std::stoi(openRequestInfo.fsize) - openRequestInfo.fdata.length();
+
+    while (bytes_to_read > 0) {
+        n = read(fd, buffer, sizeof(buffer));
+        openRequestInfo.fdata.append(buffer, n);
+        bytes_to_read -= n;
+    }
+
+    if (n == -1){
+        perror("Error reading from socket");
+        return false; // error whilst reading
+    }
+
+    //check last character of response
+    if (openRequestInfo.fdata.back() != '\n')
+        return false;
+
+    openRequestInfo.fdata.pop_back();
+
+    return true;
+}
+
+
+bool ServerTCP::readTCPdata(int& fd, std::string& response) {
+    char buffer[OPA_MESSAGE_SIZE];
+    ssize_t n;
+
+    n = read(fd, buffer, OPA_MESSAGE_SIZE);
+    response.append(buffer, n);
+        
+    if (n == -1){
+        perror("Error reading from socket");
+        return false; // error whilst reading
+    }
+
+    //check last character of response
+    if (response.empty() || response.back() != '\n')
+        return false;
+    
+    return true;
 }
