@@ -24,6 +24,19 @@ ServerUDP::ServerUDP(const char* port, int& socketUDP) {
 
 }
 
+ServerUDP::~ServerUDP() {
+    close(socketUDP);
+}
+
+
+void ServerUDP::handleUDP(){
+    while (true) 
+        receiveRequest(); 
+}
+
+
+
+
 void ServerUDP::receiveRequest(){
     char buffer[1024];
     client_addrlen = sizeof(client_addr);
@@ -71,8 +84,8 @@ void ServerUDP::receiveRequest(){
         handleMyAuctions(additionalInfo);
     else if (command == "LMB")
         handleMyBids(additionalInfo);
-    // else if (command == "SRC")
-    //     handleShowRecord(additionalInfo);
+    else if (command == "SRC")
+        handleShowRecord(additionalInfo);
     else
         sendResponse("ERR\n");
 
@@ -271,23 +284,55 @@ void ServerUDP::handleMyBids(std::string& additionalInfo){
 }
 
 
-// void ServerUDP::handleShowRecord(std::string& additionalInfo) {
+void ServerUDP::handleShowRecord(std::string& additionalInfo) {
 
-//     // RRC status [host_UID auction_name asset_fname start_value start_date-time timeactive]
-//     // [ B bidder_UID bid_value bid_date-time bid_sec_time]*
-//     // [ E end_date-time end_sec_time]
+    // RRC status [host_UID auction_name asset_fname start_value start_date-time timeactive]
+    // [ B bidder_UID bid_value bid_date-time bid_sec_time]*
+    // [ E end_date-time end_sec_time]
 
-//     std::string aid = additionalInfo;
+    std::string aid = additionalInfo;
 
-//     AuctionGeneralInfo general = getAuctionGeneralInfo(aid);
+    AuctionGeneralInfo general;
+    BidList bidList;
+    AuctionEndInfo endInfo;
 
-//     std::string response = "RMB OK ";
+    int active = isAuctionStillActive(aid);
 
-//     response += host_UID + " " + auction_name + " " + asset_fname + " " +\
-//                 start_value + " " + start_datetime + " " + time_active;
+    getAuctionGeneralInfo(aid, general);
+
+    getBidList(aid, bidList);
     
-//     return;
-// }
+    if (!active)
+        getAuctionEndInfo(aid, endInfo);
+
+    // write response
+
+    std::string response = "RRC OK ";
+
+    //general info
+    response += general.host_uid + " " + general.auction_name + " " + general.asset_fname + " " +\
+                general.start_value + " " + general.start_datetime + " " + general.time_active;
+
+    //bids info
+    
+    if (bidList.bid_count > 0) {
+        BidInfo bid;
+        for (int i = 0; i < bidList.bid_count; i++) {
+            bid = bidList.bids[i];
+            response += " B " + bid.bidder_uid + " " + bid.bid_value + " " + bid.bid_datetime + " " + bid.bid_sec_time;
+        }
+    }
+
+    //end info
+    if (!active)
+        response += " E " + endInfo.end_datetime + " " + endInfo.end_sec_time;
+
+    response += "\n";
+
+    sendResponse(response.c_str());
+
+    return;
+}
 
 
 // Auxiliary Functions

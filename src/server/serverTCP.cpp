@@ -22,7 +22,7 @@ ServerTCP::ServerTCP(const char* port, int& socketTCP) {
         exit(1); // TODO: Fix Error handling
     }
 
-    if (listen(socketTCP, 5) == -1) {  // alterar este valor?
+    if (listen(socketTCP, 5) == -1) {  
         perror("Listen error TCP server");
         exit(1); // TODO: Fix Error handling
     }
@@ -32,128 +32,138 @@ ServerTCP::ServerTCP(const char* port, int& socketTCP) {
     auctionCounter = getNumAuctions();
 }
 
+ServerTCP::~ServerTCP() {
+    close(socketTCP);
+}
 
-void ServerTCP::receiveRequest(int& as_socket){
+
+void ServerTCP::handleTCP(){
+    while (true) {
+        int client_socket = acceptClient();
+        if (client_socket >= 0) {
+            std::thread client_thread(&ServerTCP::handleClient, 
+                                    this, client_socket);
+            client_thread.detach();
+        }
+    }
+}
+
+
+int ServerTCP::acceptClient() {
     struct sockaddr_in client_addr;
     socklen_t addrlen = sizeof(client_addr);
-    std::string request, command, additionalInfo;
 
-    // Accept the incoming TCP connection
-    socketTCP = accept(as_socket, (struct sockaddr *)&client_addr, &addrlen);
-    if (socketTCP < 0) {
+    // accept the incoming TCP connection
+    int client_socket = accept(socketTCP, (struct sockaddr *)&client_addr, &addrlen);
+    if (client_socket < 0) {
         perror("Accept error");
-        return;
+        return -1; 
     }
 
+    return client_socket; 
+}
+
+
+void ServerTCP::handleClient(int client_socket) {
+    std::string request, command, additionalInfo;
+
+    // set timeout for client socket
     struct timeval tv;
     tv.tv_sec = 5; // TODO: check this?
     tv.tv_usec = 0;
-    setsockopt(socketTCP, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+    setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
-    int n;
-    char buffer[1024];
-    
-    while ((n = read(socketTCP, buffer, sizeof(buffer) - 1)) > 0 ) {
-        // Null-terminate the received data
-        buffer[n] = '\0';
+    // receive data from the client socket
+    readTCPdata(client_socket, request);
 
-        // Append the received data to the string
-        request.append(buffer, n);
-
-        if (buffer[n-1] == '\n') break; // message complete
+    if (!request.empty()) {
+        request.pop_back();
     }
 
-    // send ERR if error during read operation
-    if (n==-1){
-        sendResponse("ERR\n");
-        closeTCPConn(socketTCP);
-        return;
-    }
-
-    // remove trailing newline character
-    request.pop_back();
-
-    // Handle request
-
+    // handle request
     size_t splitIndex = request.find(' ');
 
     if (splitIndex != std::string::npos) {
         command = request.substr(0, splitIndex);
         additionalInfo = request.substr(splitIndex + 1); 
-    } else 
+    } else {
         command = request;
-
+    }
 
     if (command == "OPA") 
-        handleOpen(additionalInfo);
+        handleOpen(additionalInfo, client_socket);
     else if (command == "CLS")
-        handleClose(additionalInfo);
+        handleClose(additionalInfo, client_socket);
     else if (command == "BID")
-        handleBid(additionalInfo);
+        handleBid(additionalInfo, client_socket);
     else if (command == "SAS")
-        handleShowAsset(additionalInfo);
+        handleShowAsset(additionalInfo, client_socket);
     else
-        sendResponse("ERR\n");
+        sendResponse("ERR\n", client_socket);
 
-    closeTCPConn(socketTCP);
+    close(client_socket);
 }
 
 
 // Request Handlers
 
 
-
-void ServerTCP::handleOpen(std::string& additionalInfo) {
+void ServerTCP::handleOpen(std::string& additionalInfo, int client_socket) {
     OpenRequestInfo openRequestInfo;
 
     // parse and validate info
     if (!parseOpenRequestInfo(additionalInfo, openRequestInfo)) {
-        sendResponse("ERR\n");
+        sendResponse("ERR\n", client_socket);
         return;
     }
-
+    std::string aid;
+    
+    commandMutex.lock();
     if (!isUserLogged(openRequestInfo.uid)) {
-        sendResponse("ROA NLG\n"); // user is not logged in
+        sendResponse("ROA NLG\n", client_socket); // user is not logged in
         return;
     }
-
+    
     // get AID for new auction
 
     if (auctionCounter == 999) { // max number of auctions reached
-        sendResponse("ROA NOK\n");
+        sendResponse("ROA NOK\n", client_socket);
         return;
     }
-
     auctionCounter++;
-    std::string aid = std::to_string(auctionCounter);
+    aid = std::to_string(auctionCounter);    
     while (aid.length() < 3) aid = "0" + aid; // add leading zeros
 
     // create auction
 
     if (!createAuctionDir(aid) || !createNewHost(openRequestInfo.uid, aid)) {
-        sendResponse("ROA NOK\n"); 
+        sendResponse("ROA NOK\n", client_socket);
+        auctionCounter--;
         return;
     }
 
     if (!createStartFile(aid, openRequestInfo.uid, openRequestInfo.name, openRequestInfo.fname, openRequestInfo.start_value, openRequestInfo.timeactive)) {
-        sendResponse("ROA NOK\n");
+        sendResponse("ROA NOK\n", client_socket);
+        auctionCounter--;
         return;
     }
 
     if (!createAssetFile(aid, openRequestInfo.fname, openRequestInfo.fdata)) {
-        sendResponse("ROA NOK\n");
+        sendResponse("ROA NOK\n", client_socket);
+        auctionCounter--;
         return;
     }
+    commandMutex.unlock();
 
     // auction created successfully
     std::ostringstream responseStream;
     responseStream << "ROA OK " << aid << "\n";
 
-    sendResponse(responseStream.str());
+    sendResponse(responseStream.str(), client_socket);
 }
 
 
-void ServerTCP::handleClose(std::string& additionalInfo){
+void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form UID password AID
 
     std::string uid, password, aid;
@@ -171,77 +181,85 @@ void ServerTCP::handleClose(std::string& additionalInfo){
     aid = additionalInfo;
 
     if (!loginValid(uid, password) || !isAidValid(aid)) {
-        sendResponse("ERR\n");
+        sendResponse("ERR\n", client_socket);
         return;
     }
 
+    commandMutex.lock();
+
     // check if user is logged in and if password is correct
     if (!existsUserDir(uid) || !isValidPassword(uid, password)) {
-        sendResponse("RCL NOK\n");
+        sendResponse("RCL NOK\n", client_socket);
         return;
     }
 
     // check if user is logged in
     if (!isUserLogged(uid)) {
-        sendResponse("RCL NLG\n");
+        sendResponse("RCL NLG\n", client_socket);
         return;
     }
 
 
     // check if auction exists
     if (!existsAuctionDir(aid)) {
-        sendResponse("RCL EAU\n");
+        sendResponse("RCL EAU\n", client_socket);
         return;
     }
 
     // check if auction is owned by user
     if (!checkAuctionOwner(uid, aid)) { 
-        sendResponse("RCL EOW\n");
+        sendResponse("RCL EOW\n", client_socket);
         return;
     }
 
     // check if auction is still active
     if (!isAuctionStillActive(aid)) {
-        sendResponse("RCL END\n");
+        sendResponse("RCL END\n", client_socket);
         return;
     }
 
 
     // close auction
     closeActiveAuction(aid);
-    sendResponse("RCL OK\n");
+
+    commandMutex.unlock();
+    sendResponse("RCL OK\n", client_socket);
 
 }
 
 
-void ServerTCP::handleShowAsset(std::string& additionalInfo){
+void ServerTCP::handleShowAsset(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form AID
 
     std::string aid = additionalInfo;
 
     if (!isAidValid(aid)) {
-        sendResponse("ERR\n");
+        sendResponse("ERR\n", client_socket);
         return;
     }
 
     std::string fname, fsize, fdata;
 
+    commandMutex.lock();
+
     if (!getAssetFile(aid, fname, fsize, fdata)) {
-        sendResponse("RSA NOK\n");
+        sendResponse("RSA NOK\n", client_socket);
         return;
     }
+
+    commandMutex.unlock();
 
     // send response
     std::ostringstream responseStream;
     // format is RSA status [Fname Fsize Fdata]
     responseStream << "RSA OK " << fname << " " << fsize << " " << fdata << "\n";
 
-    sendResponse(responseStream.str());
+    sendResponse(responseStream.str(), client_socket);
 
 }
 
 
-void ServerTCP::handleBid(std::string& additionalInfo){
+void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form UID password AID value
 
     std::string uid, password, aid, value;
@@ -267,28 +285,29 @@ void ServerTCP::handleBid(std::string& additionalInfo){
    
     // validate fields
     if (!loginValid(uid, password) || !isAidValid(aid) || !isValueValid(value)) {
-        sendResponse("ERR\n");
+        sendResponse("ERR\n", client_socket);
         return;
     }
     
+    commandMutex.lock();
     // check if user uid and password match
     if (!isValidPassword(uid, password)) {
-        sendResponse("ERR\n");
+        sendResponse("ERR\n", client_socket);
         return;
     }
     
     if (!isAuctionStillActive(aid)) {
-        sendResponse("RBD NOK\n"); // auction is not active
+        sendResponse("RBD NOK\n", client_socket); // auction is not active
         return;
     }
 
     if (!isUserLogged(uid)) {
-        sendResponse("RBD NLG\n"); // user is not logged in
+        sendResponse("RBD NLG\n", client_socket); // user is not logged in
         return;
     }
 
     if (getAuctionHost(aid) == uid) {
-        sendResponse("RBD ILG\n"); // user is the host of the auction
+        sendResponse("RBD ILG\n", client_socket); // user is the host of the auction
         return;
     }
     
@@ -296,24 +315,26 @@ void ServerTCP::handleBid(std::string& additionalInfo){
     int currentValue = getHighestBid(aid);
 
     if (currentValue == -1) {
-        sendResponse("RBD ERR\n"); //TODO ERR or NOK?
+        sendResponse("RBD ERR\n", client_socket); //TODO ERR or NOK?
         return;
     }
     
     int valueInt = std::stoi(value);
     if (valueInt <= currentValue) {
-        sendResponse("RBD REF\n");
+        sendResponse("RBD REF\n", client_socket);
         return;
     }
     
     // bid is valid, update auction
 
     if (!createNewBidder(aid, uid) || !placeBid(aid, uid, value)) {
-        sendResponse("RBD ERR\n");
+        sendResponse("RBD ERR\n", client_socket);
         return;
     }
+    
+    commandMutex.unlock();
 
-    sendResponse("RBD ACC\n");
+    sendResponse("RBD ACC\n", client_socket);
 }
 
 
@@ -321,8 +342,8 @@ void ServerTCP::handleBid(std::string& additionalInfo){
 // Auxiliary functions
 
 
-int ServerTCP::sendResponse(const std::string& response) {
-    if (write(socketTCP, response.c_str(), response.length()) == -1) {
+int ServerTCP::sendResponse(const std::string& response, int client_socket) {
+    if (write(client_socket, response.c_str(), response.length()) == -1) {
         std::cout << "WARNING: write error\n";
         return 1;
     }

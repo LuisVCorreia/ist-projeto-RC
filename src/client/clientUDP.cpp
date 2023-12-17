@@ -19,7 +19,6 @@ ClientUDP::~ClientUDP() {
 }
 
 
-
 void ClientUDP::handleLogin(const std::string& additionalInfo, std::string& uid, std::string& password) {
     if (!uid.empty()) {  //check if already logged in
         std::cout << "already logged in\n";

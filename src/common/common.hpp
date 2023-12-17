@@ -18,6 +18,8 @@ void closeTCPConn(int& fd);
 void createUDPConn(int& fd);
 void closeUDPConn(int& fd);
 
+bool readTCPdata(int& fd, std::string& response);
+
 int loginValid(std::string& uid, std::string& password);
 int isAidValid(std::string& aid);
 int isFnameValid(std::string& fname);

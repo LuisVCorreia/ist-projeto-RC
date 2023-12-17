@@ -343,7 +343,7 @@ int getNumAuctions() {
         std::cerr << e.what() << std::endl;
         return 0;
     }
-
+    
     return numAuctions;
 }
 
@@ -696,13 +696,14 @@ int placeBid(std::string& aid, std::string& uid, std::string& value){
     if (aid.length() != 3 || uid.length() != 6)
         return 0;
     
-    while (value.length() < 6) {
-        value = "0" + value; // pad with zeros
+    std::string zeroValue = value;
+    while (zeroValue.length() < 6) {
+        zeroValue = "0" + zeroValue; // pad with zeros
     }
 
     fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
     fs::path BIDS_dir = AUCTION_dir / "BIDS";
-    fs::path BID_file = BIDS_dir / (value + ".txt");
+    fs::path BID_file = BIDS_dir / (zeroValue + ".txt");
 
     //get current time
 
@@ -816,4 +817,111 @@ std::string getMyBids(std::string& uid){
 
     return bids;
 
+}
+
+
+// Auction Record
+
+
+// get general auction info
+int getAuctionGeneralInfo(std::string& aid, AuctionGeneralInfo& generalInfo){
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path START_file = AUCTION_dir / ("START_" + aid + ".txt");
+
+    std::string start_date, start_time;
+
+    try {
+        if (!fs::exists(START_file)) 
+            return 0;
+        std::ifstream file(START_file);
+        file >> generalInfo.host_uid >> generalInfo.auction_name >> generalInfo.asset_fname >> generalInfo.start_value >> generalInfo.time_active >> start_date >> start_time;
+        generalInfo.start_datetime = start_date + " " + start_time;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0; //TODO check for this on server code
+    }
+    return 1;
+}
+
+
+// get list with bids info
+int getBidList(std::string&  aid, BidList& list){
+    struct dirent **filelist;
+    int n_entries, len;
+    char dirname[30];
+    char pathname[286];
+
+    list.bid_count=0;
+    
+    sprintf(dirname, "src/server/AUCTIONS/%s/BIDS/", aid.c_str());
+
+    n_entries = scandir(dirname, &filelist, 0, alphasort);
+    if (n_entries <= 0) { // Could test for -1 since n_entries count always with . and ..
+        return(n_entries);
+    }
+    
+    for (int i = 0; i < n_entries; i++)
+    {
+        len=strlen(filelist[i]->d_name);
+        if(len==10)  //Discard '.', '..', and invalid filenames by size
+        {
+            sprintf(pathname, "src/server/AUCTIONS/%s/BIDS/%s", aid.c_str(), filelist[i]->d_name);
+            if (loadBid(pathname, list, list.bid_count))
+            {
+                ++list.bid_count;
+            }
+        }
+        free(filelist[i]);
+        if(list.bid_count==50)
+            break;
+    }
+    free(filelist);
+    
+    return(list.bid_count);
+}
+
+// add bid to bidlist
+int loadBid(char *pathname, BidList& list, int n_bids){   
+    std::string bid_date, bid_time;
+
+    try {
+        if (!fs::exists(pathname)) 
+            return 0;
+        
+        std::ifstream file(pathname);
+        file >> list.bids[n_bids].bidder_uid >> list.bids[n_bids].bid_value >> bid_date >> bid_time >> list.bids[n_bids].bid_sec_time;
+        list.bids[n_bids].bid_datetime = bid_date + " " + bid_time;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0; //TODO check for this on server code
+    }
+    
+    return 1;
+}
+
+
+// get auction end info
+int getAuctionEndInfo(std::string& aid, AuctionEndInfo& endInfo){
+    if (aid.length() != 3)
+        return 0;
+
+    fs::path AUCTION_dir = fs::path("src/server/AUCTIONS") / aid;
+    fs::path END_file = AUCTION_dir / ("END_" + aid + ".txt");
+
+    std::string end_date, end_time;
+
+    try {
+        if (!fs::exists(END_file)) 
+            return 0;
+        std::ifstream file(END_file);
+        file >> end_date >> end_time >> endInfo.end_sec_time;
+        endInfo.end_datetime = end_date + " " + end_time;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 0; //TODO check for this on server code
+    }
+    return 1;
 }

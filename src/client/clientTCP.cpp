@@ -173,10 +173,11 @@ void ClientTCP::sendBidRequest(const std::string& uid, const std::string& passwo
 void ClientTCP::receiveOpenResponse() {
     std::string response, response_code, status;
 
-    if (!readTCPdata(response)) {
+    if (!readTCPdata(fd, response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
+    closeTCPConn(fd);
 
     response_code = std::string(response).substr(0, 3);
 
@@ -215,10 +216,11 @@ void ClientTCP::receiveShowAssetResponse() {
     std::string response;
 
     // receive response
-    if (!readTCPdata(response)) {
+    if (!readTCPdata(fd, response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
+    closeTCPConn(fd);
 
     std::istringstream iss(response);
     std::string response_code, status, fname, fsizeStr;
@@ -249,10 +251,12 @@ void ClientTCP::receiveBidResponse() {
 
     // receive response
 
-    if (!readTCPdata(response)) {
+    if (!readTCPdata(fd, response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
+    closeTCPConn(fd);
+
     
     // parse received data
     //TODO validate response
@@ -283,10 +287,11 @@ void ClientTCP::receiveCloseResponse(const std::string& uid, const std::string& 
     char buffer[9];
     std::string response, response_code, status;
 
-    if (!readTCPdata(response)) {
+    if (!readTCPdata(fd, response)) {
         std::cout << "WARNING: unexpected protocol message\n";
         return;
     }
+    closeTCPConn(fd);
 
     response_code = std::string(response).substr(0, 3);
     status = std::string(response).substr(4);
@@ -341,31 +346,3 @@ int ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionIn
 }
 
 
-// Auxiliary Functions
-
-
-bool ClientTCP::readTCPdata(std::string& response) {
-    char buffer[1024];
-    ssize_t n;
-
-    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {        
-        // Null-terminate the received data
-        buffer[n] = '\0';
-
-        // Append the received data to the string
-        response.append(buffer, n);
-    }
-    
-    closeTCPConn(fd);
-    
-    if (n == -1){
-        perror("Error reading from socket");
-        return false; // error whilst reading
-}
-
-    //check last character of response
-    if (response.empty() || response.back() != '\n')
-        return false;
-    
-    return true;
-}

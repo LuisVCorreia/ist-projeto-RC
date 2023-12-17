@@ -12,6 +12,7 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <thread>
 
 #include <utils.hpp>
 #include <common/common.hpp>
@@ -19,6 +20,8 @@
 class ServerUDP {
     public:
         ServerUDP(const char* port, int& socketUDP);
+        ~ServerUDP();
+        void handleUDP();
         void receiveRequest();
 
 
@@ -33,7 +36,7 @@ class ServerUDP {
         void handleAllAuctions(std::string& additionalInfo);
         void handleMyAuctions(std::string& additionalInfo);
         void handleMyBids(std::string& additionalInfo);
-        // void handleShowRecord(std::string& additionalInfo);
+        void handleShowRecord(std::string& additionalInfo);
 
         int sendResponse(const std::string& response);
        

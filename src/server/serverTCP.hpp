@@ -12,6 +12,8 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <thread>
+#include <mutex>
 
 #include <utils.hpp>
 #include <common/common.hpp>
@@ -20,13 +22,18 @@
 class ServerTCP {
     public:
         ServerTCP(const char* port, int& socketTCP);
-        void receiveRequest(int& as_socket);
+        ~ServerTCP();
+        void handleTCP();
+        void handleClient(int client_socket);
+        int acceptClient();
+        std::mutex commandMutex;
+        int auctionCounter;
 
     private:
         int socketTCP;
         struct addrinfo hints, *res;
-        int auctionCounter;
-
+        
+        
         struct OpenRequestInfo {
             std::string uid;
             std::string password;
@@ -38,15 +45,15 @@ class ServerTCP {
             std::string fdata; 
         };
         
-        void handleOpen(std::string& additionalInfo);
-        void handleClose(std::string& additionalInfo);
-        void handleBid(std::string& additionalInfo);
-        void handleShowAsset(std::string& additionalInfo);
+        void handleOpen(std::string& additionalInfo, int client_socket);
+        void handleClose(std::string& additionalInfo, int client_socket);
+        void handleBid(std::string& additionalInfo, int client_socket);
+        void handleShowAsset(std::string& additionalInfo, int client_socket);
 
         int parseOpenRequestInfo(std::string& additionalInfo, OpenRequestInfo& openRequestInfo);
         int validateOpenRequestInfo(OpenRequestInfo& openRequestInfo);
 
-        int sendResponse(const std::string& response);
+        int sendResponse(const std::string& response, int client_socket);
 };
 
 #endif

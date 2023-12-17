@@ -34,7 +34,6 @@ class AS {
     private:
         ServerUDP serverUDP;
         ServerTCP serverTCP;
-        bool session_terminated = false;
 };
 
 
