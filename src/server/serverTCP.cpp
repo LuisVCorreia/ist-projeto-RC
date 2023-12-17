@@ -174,9 +174,14 @@ void ServerTCP::handleOpen(std::string& additionalInfo, int client_socket) {
 void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form UID password AID
 
-    std::string uid, password, aid;
-
+    if (additionalInfo.back() != '\n') {
+        sendResponse("ERR\n", client_socket); // missing final newline
+        return;
+    }
+    
     additionalInfo.pop_back(); // remove final newline
+
+    std::string uid, password, aid;
 
     size_t splitIndex = additionalInfo.find(' ');
 
@@ -246,10 +251,14 @@ void ServerTCP::handleClose(std::string& additionalInfo, int client_socket){
 void ServerTCP::handleShowAsset(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form AID
 
+    if (additionalInfo.back() != '\n') {
+        sendResponse("ERR\n", client_socket); // missing final newline
+        return;
+    }
+
     additionalInfo.pop_back(); // remove final newline
 
     std::string aid = additionalInfo;
-
 
     if (!isAidValid(aid)) {
         sendResponse("ERR\n", client_socket);
@@ -281,9 +290,14 @@ void ServerTCP::handleShowAsset(std::string& additionalInfo, int client_socket){
 void ServerTCP::handleBid(std::string& additionalInfo, int client_socket){
     //additionalInfo in the form UID password AID value
 
-    std::string uid, password, aid, value;
-
+    if (additionalInfo.back() != '\n') {
+        sendResponse("ERR\n", client_socket); // missing final newline
+        return;
+    }
+    
     additionalInfo.pop_back(); // remove final newline
+
+    std::string uid, password, aid, value;
 
     // parse additionalInfo
 
@@ -481,8 +495,8 @@ bool ServerTCP::readFData(int& fd, OpenRequestInfo& openRequestInfo) {
         return false; // error whilst reading
     }
 
-    //check last character of response
-    if (openRequestInfo.fdata.back() != '\n')
+    // check last character of fdata
+    if (openRequestInfo.fdata.back()  != '\n')
         return false;
 
     openRequestInfo.fdata.pop_back();
@@ -491,20 +505,20 @@ bool ServerTCP::readFData(int& fd, OpenRequestInfo& openRequestInfo) {
 }
 
 
-bool ServerTCP::readTCPdata(int& fd, std::string& response) {
+bool ServerTCP::readTCPdata(int& fd, std::string& request) {
     char buffer[OPA_MESSAGE_SIZE];
     ssize_t n;
 
     n = read(fd, buffer, OPA_MESSAGE_SIZE);
-    response.append(buffer, n);
+    request.append(buffer, n);
         
     if (n == -1){
         perror("Error reading from socket");
         return false; // error whilst reading
     }
 
-    //check last character of response
-    if (response.empty() || response.back() != '\n')
+    // check last character of request
+    if (request.empty())
         return false;
     
     return true;

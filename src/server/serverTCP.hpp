@@ -18,7 +18,6 @@
 #include <utils.hpp>
 #include <common/common.hpp>
 
-#define OPA_MESSAGE_SIZE 78 // exluding fdata size
 
 class ServerTCP {
     public:
@@ -57,7 +56,7 @@ class ServerTCP {
         int sendResponse(const std::string& response, int client_socket);
 
         bool readFData(int& fd, OpenRequestInfo& openRequestInfo);
-        bool readTCPdata(int& fd, std::string& response);
+        bool readTCPdata(int& fd, std::string& request);
 };
 
 #endif

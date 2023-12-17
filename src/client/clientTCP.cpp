@@ -65,7 +65,6 @@ void ClientTCP::handleShowAsset(const std::string& additionalInfo) {
         return;
     }
 
-
     sendShowAssetRequest(additionalInfo);
     receiveShowAssetResponse();
 }
@@ -73,7 +72,7 @@ void ClientTCP::handleShowAsset(const std::string& additionalInfo) {
 
 void ClientTCP::handleBid(const std::string& additionalInfo, const std::string& uid, const std::string& password) {
     if (uid.empty()) {  //check if user is logged in
-        std::cout << "user not logged in\n";
+        std::cout << "user not logged in" << std::endl;
         return;
     }
 
@@ -94,7 +93,7 @@ void ClientTCP::handleClose(const std::string& additionalInfo, const std::string
     std::string aid = additionalInfo;
 
     if (uid.empty()) {  //check if user is logged in
-        std::cout << "user not logged in\n";
+        std::cout << "user not logged in" << std::endl;
         return;
     }
 
@@ -218,28 +217,68 @@ void ClientTCP::receiveShowAssetResponse() {
     // receive response
     if (!readTCPdata(fd, response)) {
         std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "oh shit here we go again" << std::endl;
         return;
     }
+
+    // parse response
+    std::string response_code, status, fname, fsize, fdata;
+
+    size_t splitIndex = response.find(' ');
+    response_code = response.substr(0, splitIndex);
+
+    if (response_code != "RSA") {
+        std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "response_code: " << response_code << std::endl;
+        return;
+    }
+    response = response.substr(splitIndex + 1);
+    splitIndex = response.find(' ');
+    status = response.substr(0, splitIndex);
+
+    if (status == "NOK\n"){
+        std::cout << "problem sending the requested file\n";
+        return;
+    }
+    if (status != "OK"){
+        std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "status: " << status << std::endl;
+        return;
+    }
+
+    response = response.substr(splitIndex + 1);
+    splitIndex = response.find(' ');
+    fname = response.substr(0, splitIndex);
+
+    if (!isFnameValid(fname)) {
+        std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "fname: " << fname << std::endl;
+        return;
+    }
+
+    response = response.substr(splitIndex + 1);
+    splitIndex = response.find(' ');
+    fsize = response.substr(0, splitIndex);
+
+    if (!isFsizeValid(fsize)) {
+        std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "fsize: " << fsize << std::endl;
+        return;
+    }
+
+    response = response.substr(splitIndex + 1);
+    fdata = response;
+
+    if (!readFData(fd, fsize, fdata)) {
+        std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "error reading fdata" << std::endl;
+        return;
+    }
+
     closeTCPConn(fd);
 
-    std::istringstream iss(response);
-    std::string response_code, status, fname, fsizeStr;
-    iss >> response_code >> status >> fname >> fsizeStr;
-
-    size_t metadata_end = iss.tellg();
-    metadata_end = response.find_first_not_of(" ", metadata_end); 
-
-    if (metadata_end == std::string::npos || metadata_end >= response.size()) {
-        std::cout << "WARNING: unexpected protocol message\n";
-        return;
-    }
-
     std::cout << "File name: " << fname << std::endl;
-    std::cout << "File size: " << fsizeStr << std::endl;
-
-    // write file data
-    size_t fsize = std::stoul(fsizeStr);
-    std::string fdata = response.substr(metadata_end, fsize);
+    std::cout << "File size: " << fsize << std::endl;
 
     writeFileBinary("src/client/ASSETS/" + fname, fdata);
 }
@@ -347,29 +386,47 @@ int ClientTCP::parseOpenInfo(std::string& additionalInfo, AuctionInfo& auctionIn
 
 
 bool ClientTCP::readTCPdata(int& fd, std::string& response) {
-    char buffer[1024];
+    char buffer[SRC_MESSAGE_SIZE];
     ssize_t n;
 
-    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0 ) {     
-        // Null-terminate the received data
-        buffer[n] = '\0';
-
-        // Append the received data to the string
-        response.append(buffer, n);
-
-        if (response.back() == '\n') {
-            break;
-        }
-    }
+    n = read(fd, buffer, SRC_MESSAGE_SIZE);
+    response.append(buffer, n);
         
     if (n == -1){
         perror("Error reading from socket");
         return false; // error whilst reading
     }
 
-    //check last character of response
-    if (response.empty() || response.back() != '\n')
+    // check last character of response
+    if (response.empty())
         return false;
     
+    return true;
+}
+
+
+
+bool ClientTCP::readFData(int& fd, std::string& fsize, std::string& fdata) {
+    char buffer[4096];
+    ssize_t n;
+    int bytes_to_read = std::stoi(fsize) - fdata.length();
+
+    while (bytes_to_read > 0) {
+        n = read(fd, buffer, sizeof(buffer));
+        fdata.append(buffer, n);
+        bytes_to_read -= n;
+    }
+
+    if (n == -1){
+        perror("Error reading from socket");
+        return false; // error whilst reading
+    }
+
+    // check last character of response
+    if (fdata.back() != '\n')
+        return false;
+
+    fdata.pop_back();
+
     return true;
 }

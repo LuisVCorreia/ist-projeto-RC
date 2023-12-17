@@ -107,15 +107,16 @@ void ClientUDP::handleAllAuctions(const std::string& additionalInfo) {
     receiveAllAuctionsResponse();
 }
 
-void ClientUDP::handleShowRecord(const std::string& additionalInfo, std::string& uid){
-    /*if () {  //check valid format
-        std::cout << "invalid  aid\n";
-        return;
-    }*/ //FIXME validade aid
-
+void ClientUDP::handleShowRecord(const std::string& additionalInfo, std::string& uid) {
     if (uid.empty()) {  //check if user is logged in
-        std::cout << "user not logged in\n";
+        std::cout << "user not logged in" << std::endl;
         return;
+    }
+
+    std::string aid = additionalInfo;
+
+    if (!isAidValid(aid)) { // check if aid is valid
+        std::cout << "aid is not valid" << std::endl;
     }
 
     sendShowRecordRequest(additionalInfo);
@@ -192,12 +193,7 @@ void ClientUDP::receiveAllAuctionsResponse(){
 }
 
 void ClientUDP::receiveShowRecordResponse(){
-    // max size of message is
-    //7 + 1 + (6 + 10 + 24 + 6 + 19 + 5 + 5 (spaces))
-    // + (1 + 6 + 6 + 19 + 5 + 4(spaces)) * 50
-    // + 1 + 19 + 5 + 3(spaces)
-    // = 2161 FIXME check this
-    char buffer[2161];
+    char buffer[SRC_MESSAGE_SIZE];
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
 
@@ -212,7 +208,7 @@ void ClientUDP::receiveShowRecordResponse(){
     std::string response_info = std::string(buffer).substr(4);
 
     if (response_code != "RRC"){
-        std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "WARNING: unexpected protocol message" << std::endl;
         return;
     }
 
@@ -222,7 +218,7 @@ void ClientUDP::receiveShowRecordResponse(){
         // no auctions received in the response or error
         std::string status = response_info.substr(0, splitIndex);
         if (status != "OK") {
-            std::cout << "WARNING: unexpected protocol message\n";
+            std::cout << "WARNING: unexpected protocol message" << std::endl;
             return;
         }
 
@@ -263,8 +259,7 @@ void ClientUDP::receiveAuthResponse(std::string responseType, std::string& uid, 
 }
 
 void ClientUDP::receiveListResponse(std::string responseType){
-    // max size of message is 7 + 6 * 999 + 1 =  6002
-    char buffer[6002];
+    char buffer[RLS_MESSAGE_SIZE];
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
 
@@ -445,12 +440,12 @@ void ClientUDP::validateLogoutResponse(std::string response, std::string status,
         password = "";
     }
     else if (status == "NOK\n")
-        std::cout << "incorrect logout attempt: user is not logged in\n";
+        std::cout << "incorrect logout attempt: user is not logged in" << std::endl;
     else if (status == "UNR\n")
-        std::cout << "incorrect logout attempt: user is not registered\n";
+        std::cout << "incorrect logout attempt: user is not registered" << std::endl;
     else 
         //TODO: error message sufficient?
-        std::cout << "WARNING: unexpected protocol message\n";
+        std::cout << "WARNING: unexpected protocol message" << std::endl;
 }
 
 
